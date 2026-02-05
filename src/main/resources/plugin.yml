@@ -1,0 +1,6 @@
+name: GeoPlugin
+version: 1.0
+author: palgato
+main: me.palgato.geoplugin.GeoPlugin
+api-version: '1.20'
+description: Detect the players' country ISO Code using a local database.
