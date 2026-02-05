@@ -20,6 +20,8 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+        
         try {
             this.geoManager = initializeGeoManager();
             getServer().getPluginManager().registerEvents(this, this);
@@ -51,6 +53,10 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerJoin(PlayerJoinEvent event) {
+        if (!getConfig().getBoolean("log-player-connections", true)) {
+            return;
+        }
+
         InetSocketAddress socketAddress = event.getPlayer().getAddress();
         if (socketAddress == null) {
             return;

@@ -8,5 +8,5 @@ description: Detect the players' country ISO Code using a local database.
 commands:
   geoplugin:
     description: Test geolocation features and query IP addresses.
-    usage: /geoplugin <ipcheck|help> [args]
+    usage: /geoplugin <ipcheck|reload|help> [args]
     permission: geoplugin.admin

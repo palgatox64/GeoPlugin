@@ -34,6 +34,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         this.plugin = plugin;
         this.subCommands = Map.of(
             "ipcheck", new IpCheckCommand(),
+            "reload", new ReloadCommand(),
             "help", new HelpCommand()
         );
     }
@@ -156,6 +157,19 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public String getDescription() {
             return "Check country code for ip address or player";
+        }
+    }
+
+    private final class ReloadCommand implements SubCommand {
+        @Override
+        public void execute(CommandSender sender, String[] args) {
+            plugin.reloadConfig();
+            sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + "Configuration reloaded successfully.");
+        }
+
+        @Override
+        public String getDescription() {
+            return "Reload plugin configuration";
         }
     }
 
