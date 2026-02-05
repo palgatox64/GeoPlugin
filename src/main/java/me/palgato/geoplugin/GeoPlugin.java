@@ -14,7 +14,7 @@ import java.util.logging.Level;
 
 public final class GeoPlugin extends JavaPlugin implements Listener {
 
-    private static final String DATABASE_FILENAME = "GeoLite2-Country.mmdb";
+    private static final String DATABASE_FILENAME = "Countries.mmdb";
 
     private GeoManager geoManager;
 
