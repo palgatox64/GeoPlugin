@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -61,6 +62,14 @@ public final class GeoPlaceholderExpansion extends PlaceholderExpansion {
     @Override
     public boolean persist() {
         return true;
+    }
+
+    @Override
+    public @NotNull List<String> getPlaceholders() {
+        return List.of(
+            "%geoplugin_ipcheck_<player/ip>%",
+            "%geoplugin_ipcheck_smallcaps_<player/ip>%"
+        );
     }
 
     @Override
