@@ -27,6 +27,11 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             GeoCommands commands = new GeoCommands(geoManager, this);
             getCommand("geoplugin").setExecutor(commands);
             getCommand("geoplugin").setTabCompleter(commands);
+
+            if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
+                new GeoPlaceholderExpansion(this, geoManager).register();
+                getLogger().info("PlaceholderAPI integration enabled.");
+            }
         } catch (IOException e) {
             getLogger().log(Level.SEVERE, "Failed to initialize GeoIP database", e);
             getServer().getPluginManager().disablePlugin(this);
