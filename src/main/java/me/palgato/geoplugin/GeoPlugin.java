@@ -23,6 +23,10 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         try {
             this.geoManager = initializeGeoManager();
             getServer().getPluginManager().registerEvents(this, this);
+            
+            GeoCommands commands = new GeoCommands(geoManager, this);
+            getCommand("geoplugin").setExecutor(commands);
+            getCommand("geoplugin").setTabCompleter(commands);
         } catch (IOException e) {
             getLogger().log(Level.SEVERE, "Failed to initialize GeoIP database", e);
             getServer().getPluginManager().disablePlugin(this);
