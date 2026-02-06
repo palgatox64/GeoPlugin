@@ -1,8 +1,34 @@
+# ============================================================
+#                    GeoPlugin Configuration
+# ============================================================
+
+# Log player connections with their country code to console
+# Set to true to see messages like: "PlayerName connected from: US"
 log-player-connections: true
 
+# ============================================================
+#              Country Access Control System
+# ============================================================
 country-access-control:
+  # Enable or disable the access control system
+  # When disabled, all players can join regardless of their country
   enabled: false
+  
+  # Access control mode: 'whitelist' or 'blacklist'
+  # - whitelist: Only players from listed countries can join
+  # - blacklist: Players from listed countries cannot join
   mode: 'blacklist'
+  
+  # List of country ISO codes (2 letters, uppercase)
+  # Examples: US, GB, DE, FR, ES, MX, BR, AR, CL, etc.
+  # You can find ISO codes here: https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
+  # Add one country per line using the format:
+  #   - 'US'
+  #   - 'GB'
+  #   - 'DE'
   countries:
     - 'XX'
+  
+  # Message sent to players when they are kicked
+  # Supports color codes (&c for red, &a for green, etc.)
   kick-message: '&cYou cannot join from your country.'
