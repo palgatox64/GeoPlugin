@@ -191,20 +191,35 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
                 return;
             }
             
-            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Online players " + 
-                ChatColor.DARK_GRAY + "(" + ChatColor.WHITE + onlinePlayers.size() + ChatColor.DARK_GRAY + "):");
+            Map<String, List<String>> playersByCountry = new LinkedHashMap<>();
             
             for (Player player : onlinePlayers) {
                 InetSocketAddress socketAddress = player.getAddress();
-                String countryCode = ChatColor.DARK_GRAY + "Unknown";
+                String countryCode = "Unknown";
                 
                 if (socketAddress != null) {
-                    countryCode = ChatColor.YELLOW + geoManager.getCountryCodeOrDefault(socketAddress.getAddress());
+                    countryCode = geoManager.getCountryCodeOrDefault(socketAddress.getAddress());
                 }
                 
-                sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + player.getName() + 
-                    ChatColor.DARK_GRAY + " -> " + countryCode);
+                playersByCountry.computeIfAbsent(countryCode, k -> new java.util.ArrayList<>()).add(player.getName());
             }
+            
+            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Online players " + 
+                ChatColor.DARK_GRAY + "(" + ChatColor.WHITE + onlinePlayers.size() + ChatColor.DARK_GRAY + "):");
+            
+            playersByCountry.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> {
+                    String countryCode = entry.getKey();
+                    List<String> players = entry.getValue();
+                    
+                    sender.sendMessage(ChatColor.YELLOW + countryCode + ChatColor.DARK_GRAY + " (" + 
+                        ChatColor.WHITE + players.size() + ChatColor.DARK_GRAY + "):");
+                    
+                    players.forEach(playerName -> 
+                        sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + playerName)
+                    );
+                });
         }
 
         @Override
