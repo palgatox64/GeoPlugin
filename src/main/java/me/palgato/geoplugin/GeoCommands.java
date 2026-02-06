@@ -13,6 +13,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -32,11 +33,13 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
     public GeoCommands(GeoManager geoManager, Plugin plugin) {
         this.geoManager = geoManager;
         this.plugin = plugin;
-        this.subCommands = Map.of(
-            "ipcheck", new IpCheckCommand(),
-            "reload", new ReloadCommand(),
-            "help", new HelpCommand()
-        );
+        
+        Map<String, SubCommand> commands = new LinkedHashMap<>();
+        commands.put("help", new HelpCommand());
+        commands.put("reload", new ReloadCommand());
+        commands.put("ipcheck", new IpCheckCommand());
+        commands.put("list", new ListCommand());
+        this.subCommands = commands;
     }
 
     @Override
@@ -175,6 +178,38 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public String getDescription() {
             return "Reload plugin configuration";
+        }
+    }
+
+    private final class ListCommand implements SubCommand {
+        @Override
+        public void execute(CommandSender sender, String[] args) {
+            List<? extends Player> onlinePlayers = sender.getServer().getOnlinePlayers().stream().toList();
+            
+            if (onlinePlayers.isEmpty()) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "No players online.");
+                return;
+            }
+            
+            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Online players " + 
+                ChatColor.DARK_GRAY + "(" + ChatColor.WHITE + onlinePlayers.size() + ChatColor.DARK_GRAY + "):");
+            
+            for (Player player : onlinePlayers) {
+                InetSocketAddress socketAddress = player.getAddress();
+                String countryCode = ChatColor.DARK_GRAY + "Unknown";
+                
+                if (socketAddress != null) {
+                    countryCode = ChatColor.YELLOW + geoManager.getCountryCodeOrDefault(socketAddress.getAddress());
+                }
+                
+                sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + player.getName() + 
+                    ChatColor.DARK_GRAY + " -> " + countryCode);
+            }
+        }
+
+        @Override
+        public String getDescription() {
+            return "List all online players with their countries";
         }
     }
 
