@@ -1,1 +1,8 @@
 log-player-connections: true
+
+country-access-control:
+  enabled: false
+  mode: 'blacklist'
+  countries:
+    - 'XX'
+  kick-message: '&cYou cannot join from your country.'

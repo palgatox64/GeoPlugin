@@ -164,6 +164,11 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public void execute(CommandSender sender, String[] args) {
             plugin.reloadConfig();
+            
+            if (plugin instanceof GeoPlugin) {
+                ((GeoPlugin) plugin).reloadAccessControl();
+            }
+            
             sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + "Configuration reloaded successfully.");
         }
 
