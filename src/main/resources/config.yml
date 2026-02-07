@@ -54,3 +54,28 @@ discord:
     enabled: true
     threshold: 5
     time-window-minutes: 10
+
+# ============================================================
+#              Custom Webhook Integration
+# ============================================================
+# Use this for integration with automation platforms like n8n, Make, Zapier, etc.
+custom-webhook:
+  # Enable custom webhook notifications
+  enabled: false
+  
+  # Your custom webhook URL
+  # The plugin will send JSON payloads to this endpoint
+  webhook-url: 'https://your-webhook-url.com/webhook'
+  
+  # Send notification when a player is blocked
+  notify-on-block: true
+  
+  # Send notification when suspicious activity is detected
+  notify-on-suspicious-activity: true
+  
+  # Custom headers (optional)
+  # Useful for authentication tokens, API keys, etc.
+  # Example:
+  #   Authorization: 'Bearer your-token-here'
+  #   X-API-Key: 'your-api-key'
+  headers: {}

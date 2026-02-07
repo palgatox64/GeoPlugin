@@ -22,6 +22,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     private CountryStatistics statistics;
     private NotificationManager notificationManager;
     private DiscordWebhook discordWebhook;
+    private CustomWebhook customWebhook;
     private SuspiciousActivityTracker activityTracker;
 
     @Override
@@ -38,6 +39,14 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                 String webhookUrl = getConfig().getString("discord.webhook-url", "");
                 this.discordWebhook = new DiscordWebhook(webhookUrl, this, getLogger());
                 getLogger().info("Discord webhook integration enabled.");
+            }
+            
+            if (getConfig().getBoolean("custom-webhook.enabled", false)) {
+                String webhookUrl = getConfig().getString("custom-webhook.webhook-url", "");
+                org.bukkit.configuration.ConfigurationSection headersSection = 
+                    getConfig().getConfigurationSection("custom-webhook.headers");
+                this.customWebhook = new CustomWebhook(webhookUrl, headersSection, this, getLogger());
+                getLogger().info("Custom webhook integration enabled.");
             }
             
             if (getConfig().getBoolean("discord.suspicious-activity.enabled", false)) {
@@ -117,12 +126,23 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                 discordWebhook.sendBlockedConnectionAlert(playerName, countryCode, ipAddress);
             }
             
+            if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-block", true)) {
+                customWebhook.sendBlockedConnectionAlert(playerName, countryCode, ipAddress);
+            }
+            
             if (activityTracker != null) {
                 boolean isSuspicious = activityTracker.recordAttempt(countryCode);
-                if (isSuspicious && discordWebhook != null) {
+                if (isSuspicious) {
                     int attemptCount = activityTracker.getAttemptCount(countryCode);
                     int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
-                    discordWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
+                    
+                    if (discordWebhook != null) {
+                        discordWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
+                    }
+                    
+                    if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-suspicious-activity", true)) {
+                        customWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
+                    }
                 }
             }
         }
@@ -153,6 +173,15 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             this.discordWebhook = new DiscordWebhook(webhookUrl, this, getLogger());
         } else {
             this.discordWebhook = null;
+        }
+        
+        if (getConfig().getBoolean("custom-webhook.enabled", false)) {
+            String webhookUrl = getConfig().getString("custom-webhook.webhook-url", "");
+            org.bukkit.configuration.ConfigurationSection headersSection = 
+                getConfig().getConfigurationSection("custom-webhook.headers");
+            this.customWebhook = new CustomWebhook(webhookUrl, headersSection, this, getLogger());
+        } else {
+            this.customWebhook = null;
         }
         
         if (getConfig().getBoolean("discord.suspicious-activity.enabled", false)) {
