@@ -20,6 +20,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     private GeoManager geoManager;
     private CountryAccessControl accessControl;
     private CountryStatistics statistics;
+    private NotificationManager notificationManager;
 
     @Override
     public void onEnable() {
@@ -29,6 +30,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             this.geoManager = initializeGeoManager();
             this.accessControl = new CountryAccessControl(getConfig());
             this.statistics = new CountryStatistics(getDataFolder(), getLogger());
+            this.notificationManager = new NotificationManager(getDataFolder(), getLogger());
             getServer().getPluginManager().registerEvents(this, this);
             
             GeoCommands commands = new GeoCommands(geoManager, this);
@@ -77,8 +79,22 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         
         if (!accessControl.isAllowed(countryCode)) {
             event.disallow(PlayerLoginEvent.Result.KICK_OTHER, accessControl.getKickMessage());
-            getLogger().info("Blocked connection from " + event.getPlayer().getName() + 
-                " (Country: " + countryCode + ")");
+            
+            String playerName = event.getPlayer().getName();
+            getLogger().info("Blocked connection from " + playerName + " (Country: " + countryCode + ")");
+            
+            notificationManager.getSubscribedPlayerNames().forEach(name -> {
+                org.bukkit.entity.Player admin = getServer().getPlayerExact(name);
+                if (admin != null && admin.isOnline()) {
+                    admin.sendMessage(org.bukkit.ChatColor.DARK_GRAY + "[" + 
+                        org.bukkit.ChatColor.AQUA + "Geo" + 
+                        org.bukkit.ChatColor.DARK_GRAY + "] " + 
+                        org.bukkit.ChatColor.RED + "Blocked: " + 
+                        org.bukkit.ChatColor.WHITE + playerName + 
+                        org.bukkit.ChatColor.GRAY + " from " + 
+                        org.bukkit.ChatColor.YELLOW + countryCode);
+                }
+            });
         }
     }
 
@@ -113,6 +129,14 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     
     public CountryStatistics getStatistics() {
         return statistics;
+    }
+    
+    public NotificationManager getNotificationManager() {
+        return notificationManager;
+    }
+    
+    public CountryAccessControl getAccessControl() {
+        return accessControl;
     }
 
     @Override

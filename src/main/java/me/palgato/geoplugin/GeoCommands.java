@@ -40,6 +40,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         commands.put("ipcheck", new IpCheckCommand());
         commands.put("list", new ListCommand());
         commands.put("stats", new StatsCommand());
+        commands.put("notify", new NotifyCommand());
         this.subCommands = commands;
     }
 
@@ -277,6 +278,48 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public String getDescription() {
             return "View country connection statistics";
+        }
+    }
+
+    private final class NotifyCommand implements SubCommand {
+        @Override
+        public void execute(CommandSender sender, String[] args) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "This command can only be used by players.");
+                return;
+            }
+            
+            if (!(plugin instanceof GeoPlugin)) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Notifications unavailable.");
+                return;
+            }
+            
+            GeoPlugin geoPlugin = (GeoPlugin) plugin;
+            
+            if (!geoPlugin.getAccessControl().isEnabled()) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Country access control is currently disabled.");
+                sender.sendMessage(ChatColor.GRAY + "Enable it in config.yml and use " + 
+                    ChatColor.WHITE + "/geoplugin reload" + 
+                    ChatColor.GRAY + " before using notifications.");
+                return;
+            }
+            
+            Player player = (Player) sender;
+            NotificationManager notificationManager = geoPlugin.getNotificationManager();
+            
+            boolean newState = notificationManager.toggle(player);
+            
+            if (newState) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + "Block notifications enabled.");
+                sender.sendMessage(ChatColor.GRAY + "You will receive alerts when players are blocked by country access control.");
+            } else {
+                sender.sendMessage(MSG_PREFIX + ChatColor.YELLOW + "Block notifications disabled.");
+            }
+        }
+
+        @Override
+        public String getDescription() {
+            return "Toggle blocked connection notifications";
         }
     }
 
