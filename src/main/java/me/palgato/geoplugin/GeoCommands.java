@@ -39,6 +39,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         commands.put("reload", new ReloadCommand());
         commands.put("ipcheck", new IpCheckCommand());
         commands.put("list", new ListCommand());
+        commands.put("stats", new StatsCommand());
         this.subCommands = commands;
     }
 
@@ -225,6 +226,57 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public String getDescription() {
             return "List all online players with their countries";
+        }
+    }
+
+    private final class StatsCommand implements SubCommand {
+        @Override
+        public void execute(CommandSender sender, String[] args) {
+            if (!(plugin instanceof GeoPlugin)) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Statistics unavailable.");
+                return;
+            }
+            
+            CountryStatistics stats = ((GeoPlugin) plugin).getStatistics();
+            
+            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Country Statistics:");
+            sender.sendMessage(ChatColor.DARK_GRAY + "Total connections: " + ChatColor.WHITE + stats.getTotalConnections());
+            sender.sendMessage(ChatColor.DARK_GRAY + "Unique players: " + ChatColor.WHITE + stats.getTotalUniquePlayers());
+            sender.sendMessage("");
+            
+            sender.sendMessage(ChatColor.YELLOW + "Top Countries by Total Connections:");
+            List<Map.Entry<String, CountryStatistics.CountryData>> topByConnections = 
+                stats.getTopCountriesByConnections(10);
+            
+            int rank = 1;
+            for (Map.Entry<String, CountryStatistics.CountryData> entry : topByConnections) {
+                sender.sendMessage(ChatColor.GRAY + "  " + rank + ". " + 
+                    ChatColor.YELLOW + entry.getKey() + 
+                    ChatColor.DARK_GRAY + " - " + 
+                    ChatColor.WHITE + entry.getValue().getTotalConnections() + 
+                    ChatColor.GRAY + " connections");
+                rank++;
+            }
+            
+            sender.sendMessage("");
+            sender.sendMessage(ChatColor.YELLOW + "Top Countries by Unique Players:");
+            List<Map.Entry<String, CountryStatistics.CountryData>> topByUnique = 
+                stats.getTopCountriesByUniquePlayers(10);
+            
+            rank = 1;
+            for (Map.Entry<String, CountryStatistics.CountryData> entry : topByUnique) {
+                sender.sendMessage(ChatColor.GRAY + "  " + rank + ". " + 
+                    ChatColor.YELLOW + entry.getKey() + 
+                    ChatColor.DARK_GRAY + " - " + 
+                    ChatColor.WHITE + entry.getValue().getUniquePlayersCount() + 
+                    ChatColor.GRAY + " unique players");
+                rank++;
+            }
+        }
+
+        @Override
+        public String getDescription() {
+            return "View country connection statistics";
         }
     }
 

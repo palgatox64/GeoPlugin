@@ -19,6 +19,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
 
     private GeoManager geoManager;
     private CountryAccessControl accessControl;
+    private CountryStatistics statistics;
 
     @Override
     public void onEnable() {
@@ -27,6 +28,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         try {
             this.geoManager = initializeGeoManager();
             this.accessControl = new CountryAccessControl(getConfig());
+            this.statistics = new CountryStatistics(getDataFolder(), getLogger());
             getServer().getPluginManager().registerEvents(this, this);
             
             GeoCommands commands = new GeoCommands(geoManager, this);
@@ -82,10 +84,6 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerJoin(PlayerJoinEvent event) {
-        if (!getConfig().getBoolean("log-player-connections", true)) {
-            return;
-        }
-
         InetSocketAddress socketAddress = event.getPlayer().getAddress();
         if (socketAddress == null) {
             return;
@@ -94,7 +92,11 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         InetAddress address = socketAddress.getAddress();
         String countryCode = geoManager.getCountryCodeOrDefault(address);
         
-        getLogger().info(event.getPlayer().getName() + " connected from: " + countryCode);
+        statistics.recordConnection(countryCode, event.getPlayer().getName());
+        
+        if (getConfig().getBoolean("log-player-connections", true)) {
+            getLogger().info(event.getPlayer().getName() + " connected from: " + countryCode);
+        }
     }
     
     public void reloadAccessControl() {
@@ -107,6 +109,10 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         } else {
             getLogger().info("Country access control is disabled.");
         }
+    }
+    
+    public CountryStatistics getStatistics() {
+        return statistics;
     }
 
     @Override
