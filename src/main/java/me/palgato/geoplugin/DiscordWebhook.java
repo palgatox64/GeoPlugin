@@ -56,6 +56,25 @@ public final class DiscordWebhook {
         sendMessage(content, 16776960); // Yellow color
     }
     
+    public void sendVpnBlockedAlert(String playerName, String ipAddress, String vpnType, String provider) {
+        if (webhookUrl == null || webhookUrl.isEmpty() || webhookUrl.equals("https://discord.com/api/webhooks/YOUR_WEBHOOK_URL")) {
+            return;
+        }
+        
+        String content = String.format(
+            "**VPN Connection Blocked**\\n" +
+            "Player: `%s`\\n" +
+            "IP: `%s`\\n" +
+            "Type: `%s`\\n" +
+            "Provider: `%s`",
+            playerName, ipAddress, vpnType, provider
+        );
+        
+        String thumbnailUrl = "https://mc-heads.net/avatar/" + playerName;
+        
+        sendMessageWithThumbnail(content, 16744272, thumbnailUrl); // Orange color
+    }
+    
     private void sendMessage(String content, int color) {
         sendMessageWithThumbnail(content, color, null);
     }

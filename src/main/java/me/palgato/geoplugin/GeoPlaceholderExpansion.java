@@ -18,8 +18,8 @@ public final class GeoPlaceholderExpansion extends PlaceholderExpansion {
     private static final String IDENTIFIER = "geoplugin";
     private static final String AUTHOR = "palgato";
     private static final String VERSION = "1.0";
-    private static final String IPCHECK_PREFIX = "ipcheck_";
-    private static final String IPCHECK_SMALLCAPS_PREFIX = "ipcheck_smallcaps_";
+    private static final String COUNTRY_PREFIX = "country_";
+    private static final String COUNTRY_SMALLCAPS_PREFIX = "country_smallcaps_";
     private static final String ERROR_INVALID = "INVALID";
     private static final String ERROR_OFFLINE = "OFFLINE";
     private static final Pattern IP_PATTERN = Pattern.compile(
@@ -67,15 +67,15 @@ public final class GeoPlaceholderExpansion extends PlaceholderExpansion {
     @Override
     public @NotNull List<String> getPlaceholders() {
         return List.of(
-            "%geoplugin_ipcheck_<player/ip>%",
-            "%geoplugin_ipcheck_smallcaps_<player/ip>%"
+            "%geoplugin_country_<player/ip>%",
+            "%geoplugin_country_smallcaps_<player/ip>%"
         );
     }
 
     @Override
     public @Nullable String onRequest(OfflinePlayer player, @NotNull String params) {
-        if (params.startsWith(IPCHECK_SMALLCAPS_PREFIX)) {
-            String input = params.substring(IPCHECK_SMALLCAPS_PREFIX.length());
+        if (params.startsWith(COUNTRY_SMALLCAPS_PREFIX)) {
+            String input = params.substring(COUNTRY_SMALLCAPS_PREFIX.length());
             if (input.isEmpty()) {
                 return ERROR_INVALID;
             }
@@ -84,8 +84,8 @@ public final class GeoPlaceholderExpansion extends PlaceholderExpansion {
             return toSmallCaps(countryCode);
         }
 
-        if (params.startsWith(IPCHECK_PREFIX)) {
-            String input = params.substring(IPCHECK_PREFIX.length());
+        if (params.startsWith(COUNTRY_PREFIX)) {
+            String input = params.substring(COUNTRY_PREFIX.length());
             if (input.isEmpty()) {
                 return ERROR_INVALID;
             }

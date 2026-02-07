@@ -1,12 +1,81 @@
 name: GeoPlugin
-version: 1.0
-author: palgato
+version: '1.0-SNAPSHOT'
 main: me.palgato.geoplugin.GeoPlugin
 api-version: '1.20'
-description: Detect the players' country ISO Code using a local database.
+author: palgato
+description: Advanced GeoIP plugin with country-based access control, VPN detection, and webhooks
+softdepend: [PlaceholderAPI]
 
 commands:
   geoplugin:
-    description: Test geolocation features and query IP addresses.
-    usage: /geoplugin <ipcheck|reload|help> [args]
-    permission: geoplugin.admin
+    description: Main GeoPlugin command
+    usage: /<command> [help|reload|countrycheck|vpncheck|list|stats|notify]
+    aliases: [geo]
+    permission: geoplugin.use
+
+permissions:
+  geoplugin.*:
+    description: Grants access to all GeoPlugin features
+    default: op
+    children:
+      geoplugin.use: true
+      geoplugin.admin: true
+      geoplugin.reload: true
+      geoplugin.countrycheck: true
+      geoplugin.vpncheck: true
+      geoplugin.list: true
+      geoplugin.stats: true
+      geoplugin.notify: true
+      geoplugin.bypass: true
+  
+  geoplugin.use:
+    description: Allows basic usage of /geoplugin command
+    default: op
+  
+  geoplugin.admin:
+    description: Full administrative access to all commands
+    default: op
+    children:
+      geoplugin.use: true
+      geoplugin.reload: true
+      geoplugin.countrycheck: true
+      geoplugin.vpncheck: true
+      geoplugin.list: true
+      geoplugin.stats: true
+      geoplugin.notify: true
+  
+  geoplugin.reload:
+    description: Reload plugin configuration
+    default: op
+  
+  geoplugin.countrycheck:
+    description: Check country code for IP addresses or players
+    default: op
+  
+  geoplugin.vpncheck:
+    description: Check if an IP or player is using VPN/Proxy
+    default: op
+  
+  geoplugin.list:
+    description: List all online players with their countries
+    default: op
+  
+  geoplugin.stats:
+    description: View country connection statistics
+    default: op
+  
+  geoplugin.notify:
+    description: Toggle blocked connection notifications
+    default: op
+  
+  geoplugin.bypass:
+    description: Bypass country access control and VPN detection
+    default: false
+  
+  geoplugin.bypass.country:
+    description: Bypass country-based access control only
+    default: false
+  
+  geoplugin.bypass.vpn:
+    description: Bypass VPN detection only
+    default: false

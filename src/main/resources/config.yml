@@ -34,6 +34,49 @@ country-access-control:
   kick-message: '&cYou cannot join from your country.'
 
 # ============================================================
+#                   VPN/Proxy Detection
+# ============================================================
+vpn-detection:
+  # Enable VPN/Proxy detection
+  # Uses proxycheck.io API (1000 free queries/day)
+  # IMPORTANT: This works in Paper, Spigot standalone servers
+  # For BungeeCord/Velocity, you MUST configure IP forwarding:
+  #   - BungeeCord config.yml: ip_forward: true
+  #   - Spigot spigot.yml: settings.bungeecord: true
+  #   - Velocity: forward-secret configuration
+  # Without IP forwarding, this plugin cannot get real player IPs
+  enabled: false
+  
+  # API key for proxycheck.io (optional, but recommended for better rate limits)
+  # Get your free API key at: https://proxycheck.io/
+  # Free tier: 1000 queries/day, 100 queries/burst
+  # With API key: Better rate limits and more accurate results
+  api-key: ''
+  
+  # Block players using VPN/Proxy when detected
+  # Set to false to only log detections without blocking
+  block-vpn: true
+  
+  # Check for VPN/Proxy on player login
+  # If false, VPN detection only works with /geoplugin vpncheck command
+  check-on-login: true
+  
+  # Message sent to players when they are kicked for using VPN
+  # Supports color codes (&c for red, &a for green, etc.)
+  kick-message: '&cVPN/Proxy connections are not allowed on this server.'
+  
+  # Cache duration in minutes (reduces API calls)
+  # Results are cached to avoid repeatedly checking the same IP
+  cache-duration-minutes: 60
+  
+  # Whitelist specific IPs (useful for trusted VPNs)
+  # Example: Your personal VPN, trusted players, etc.
+  # Format:
+  #   - '192.168.1.100'
+  #   - '10.0.0.50'
+  whitelist-ips: []
+
+# ============================================================
 #                 Discord Webhook Integration
 # ============================================================
 discord:
@@ -66,6 +109,9 @@ custom-webhook:
   # Your custom webhook URL
   # The plugin will send JSON payloads to this endpoint
   webhook-url: 'https://your-webhook-url.com/webhook'
+  
+  # Send notification when a player is blocked for using VPN/Proxy
+  notify-on-vpn: false
   
   # Send notification when a player is blocked
   notify-on-block: true

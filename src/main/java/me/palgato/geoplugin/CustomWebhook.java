@@ -63,6 +63,21 @@ public final class CustomWebhook {
         sendWebhook(json);
     }
     
+    public void sendVpnBlockedAlert(String playerName, String ipAddress, String vpnType, String provider) {
+        if (webhookUrl == null || webhookUrl.isEmpty()) {
+            return;
+        }
+        
+        String avatarUrl = "https://mc-heads.net/avatar/" + playerName;
+        
+        String json = String.format(
+            "{\"event\":\"vpn_blocked\",\"timestamp\":\"%s\",\"data\":{\"player\":\"%s\",\"ip\":\"%s\",\"type\":\"%s\",\"provider\":\"%s\",\"avatar_url\":\"%s\"}}",
+            Instant.now().toString(), playerName, ipAddress, vpnType, provider, avatarUrl
+        );
+        
+        sendWebhook(json);
+    }
+    
     private void sendWebhook(String jsonPayload) {
         new BukkitRunnable() {
             @Override

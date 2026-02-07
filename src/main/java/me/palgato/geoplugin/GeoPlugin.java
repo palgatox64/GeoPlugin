@@ -1,11 +1,13 @@
 package me.palgato.geoplugin;
 
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,6 +18,12 @@ import java.util.logging.Level;
 public final class GeoPlugin extends JavaPlugin implements Listener {
 
     private static final String DATABASE_FILENAME = "countries.mmdb";
+    private static final String MSG_PREFIX = org.bukkit.ChatColor.DARK_GRAY + "[" + 
+        org.bukkit.ChatColor.AQUA + "Geo" + org.bukkit.ChatColor.DARK_GRAY + "] ";
+    
+    private static final String PERM_BYPASS_ALL = "geoplugin.bypass";
+    private static final String PERM_BYPASS_COUNTRY = "geoplugin.bypass.country";
+    private static final String PERM_BYPASS_VPN = "geoplugin.bypass.vpn";
 
     private GeoManager geoManager;
     private CountryAccessControl accessControl;
@@ -24,6 +32,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     private DiscordWebhook discordWebhook;
     private CustomWebhook customWebhook;
     private SuspiciousActivityTracker activityTracker;
+    private VpnDetector vpnDetector;
 
     @Override
     public void onEnable() {
@@ -54,6 +63,12 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                 int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
                 this.activityTracker = new SuspiciousActivityTracker(threshold, timeWindow);
                 getLogger().info("Suspicious activity tracking enabled.");
+            }
+            
+            this.vpnDetector = new VpnDetector(this);
+            vpnDetector.reload(getConfig());
+            if (vpnDetector.isEnabled()) {
+                getLogger().info("VPN detection enabled.");
             }
             
             getServer().getPluginManager().registerEvents(this, this);
@@ -91,60 +106,97 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerLogin(PlayerLoginEvent event) {
-        if (!accessControl.isEnabled()) {
-            return;
-        }
-        
         InetAddress address = event.getAddress();
         if (address == null) {
             return;
         }
         
-        String countryCode = geoManager.getCountryCodeOrDefault(address);
+        Player player = event.getPlayer();
+        String playerName = player.getName();
+        String ipAddress = address.getHostAddress();
         
-        if (!accessControl.isAllowed(countryCode)) {
-            event.disallow(PlayerLoginEvent.Result.KICK_OTHER, accessControl.getKickMessage());
+        if (accessControl.isEnabled() && !hasBypassPermission(player, PERM_BYPASS_COUNTRY)) {
+            String countryCode = geoManager.getCountryCodeOrDefault(address);
             
-            String playerName = event.getPlayer().getName();
-            String ipAddress = address.getHostAddress();
-            getLogger().info("Blocked connection from " + playerName + " (Country: " + countryCode + ")");
-            
-            notificationManager.getSubscribedPlayerNames().forEach(name -> {
-                org.bukkit.entity.Player admin = getServer().getPlayerExact(name);
-                if (admin != null && admin.isOnline()) {
-                    admin.sendMessage(org.bukkit.ChatColor.DARK_GRAY + "[" + 
-                        org.bukkit.ChatColor.AQUA + "Geo" + 
-                        org.bukkit.ChatColor.DARK_GRAY + "] " + 
-                        org.bukkit.ChatColor.RED + "Blocked: " + 
-                        org.bukkit.ChatColor.WHITE + playerName + 
-                        org.bukkit.ChatColor.GRAY + " from " + 
-                        org.bukkit.ChatColor.YELLOW + countryCode);
+            if (!accessControl.isAllowed(countryCode)) {
+                event.disallow(PlayerLoginEvent.Result.KICK_OTHER, accessControl.getKickMessage());
+                
+                getLogger().info("Blocked connection from " + playerName + " (Country: " + countryCode + ")");
+                
+                notificationManager.getSubscribedPlayerNames().forEach(name -> {
+                    org.bukkit.entity.Player admin = getServer().getPlayerExact(name);
+                    if (admin != null && admin.isOnline()) {
+                        admin.sendMessage(MSG_PREFIX + 
+                            org.bukkit.ChatColor.RED + "Blocked: " + 
+                            org.bukkit.ChatColor.WHITE + playerName + 
+                            org.bukkit.ChatColor.GRAY + " from " + 
+                            org.bukkit.ChatColor.YELLOW + countryCode);
+                    }
+                });
+                
+                if (discordWebhook != null && getConfig().getBoolean("discord.notify-on-block", true)) {
+                    discordWebhook.sendBlockedConnectionAlert(playerName, countryCode, ipAddress);
+                }
+                
+                if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-block", true)) {
+                    customWebhook.sendBlockedConnectionAlert(playerName, countryCode, ipAddress);
+                }
+                
+                if (activityTracker != null) {
+                    boolean isSuspicious = activityTracker.recordAttempt(countryCode);
+                    if (isSuspicious) {
+                        int attemptCount = activityTracker.getAttemptCount(countryCode);
+                        int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
+                        
+                        if (discordWebhook != null) {
+                            discordWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
+                        }
+                        
+                        if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-suspicious-activity", true)) {
+                            customWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
+                        }
+                    }
+                }
+                
+                return;
+            }
+        }
+        
+        if (vpnDetector.isEnabled() && vpnDetector.shouldCheckOnLogin() && !hasBypassPermission(player, PERM_BYPASS_VPN)) {
+            vpnDetector.checkIp(address).thenAccept(result -> {
+                if (result.isVpn() && vpnDetector.shouldBlockVpn()) {
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            Player targetPlayer = getServer().getPlayerExact(playerName);
+                            if (targetPlayer != null && targetPlayer.isOnline()) {
+                                targetPlayer.kickPlayer(vpnDetector.getKickMessage());
+                                
+                                getLogger().info("Blocked VPN connection from " + playerName + 
+                                    " (" + result.type() + " - " + result.provider() + ")");
+                                
+                                notificationManager.getSubscribedPlayerNames().forEach(name -> {
+                                    Player admin = getServer().getPlayerExact(name);
+                                    if (admin != null && admin.isOnline()) {
+                                        admin.sendMessage(MSG_PREFIX + 
+                                            org.bukkit.ChatColor.RED + "Blocked VPN: " + 
+                                            org.bukkit.ChatColor.WHITE + playerName + 
+                                            org.bukkit.ChatColor.GRAY + " (" + result.type() + ")");
+                                    }
+                                });
+                                
+                                if (discordWebhook != null && getConfig().getBoolean("discord.notify-on-vpn", false)) {
+                                    discordWebhook.sendVpnBlockedAlert(playerName, ipAddress, result.type(), result.provider());
+                                }
+                                
+                                if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-vpn", false)) {
+                                    customWebhook.sendVpnBlockedAlert(playerName, ipAddress, result.type(), result.provider());
+                                }
+                            }
+                        }
+                    }.runTask(this);
                 }
             });
-            
-            if (discordWebhook != null && getConfig().getBoolean("discord.notify-on-block", true)) {
-                discordWebhook.sendBlockedConnectionAlert(playerName, countryCode, ipAddress);
-            }
-            
-            if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-block", true)) {
-                customWebhook.sendBlockedConnectionAlert(playerName, countryCode, ipAddress);
-            }
-            
-            if (activityTracker != null) {
-                boolean isSuspicious = activityTracker.recordAttempt(countryCode);
-                if (isSuspicious) {
-                    int attemptCount = activityTracker.getAttemptCount(countryCode);
-                    int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
-                    
-                    if (discordWebhook != null) {
-                        discordWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
-                    }
-                    
-                    if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-suspicious-activity", true)) {
-                        customWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
-                    }
-                }
-            }
         }
     }
 
@@ -161,8 +213,19 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         statistics.recordConnection(countryCode, event.getPlayer().getName());
         
         if (getConfig().getBoolean("log-player-connections", true)) {
-            getLogger().info(event.getPlayer().getName() + " connected from: " + countryCode);
+            String bypassInfo = "";
+            Player p = event.getPlayer();
+            if (hasBypassPermission(p, PERM_BYPASS_ALL)) {
+                bypassInfo = " [BYPASS]";
+            } else if (hasBypassPermission(p, PERM_BYPASS_COUNTRY) || hasBypassPermission(p, PERM_BYPASS_VPN)) {
+                bypassInfo = " [PARTIAL BYPASS]";
+            }
+            getLogger().info(p.getName() + " connected from: " + countryCode + bypassInfo);
         }
+    }
+    
+    private boolean hasBypassPermission(Player player, String specificPermission) {
+        return player.hasPermission(PERM_BYPASS_ALL) || player.hasPermission(specificPermission);
     }
     
     public void reloadAccessControl() {
@@ -192,6 +255,11 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             this.activityTracker = null;
         }
         
+        vpnDetector.reload(getConfig());
+        if (vpnDetector.isEnabled()) {
+            getLogger().info("VPN detection reloaded.");
+        }
+        
         if (accessControl.isEnabled()) {
             getLogger().info("Country access control reloaded: " + 
                 accessControl.getMode() + " mode with " + 
@@ -211,6 +279,10 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     
     public CountryAccessControl getAccessControl() {
         return accessControl;
+    }
+    
+    public VpnDetector getVpnDetector() {
+        return vpnDetector;
     }
 
     @Override
