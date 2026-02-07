@@ -171,7 +171,35 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             plugin.reloadConfig();
             
             if (plugin instanceof GeoPlugin) {
-                ((GeoPlugin) plugin).reloadAccessControl();
+                GeoPlugin geoPlugin = (GeoPlugin) plugin;
+                geoPlugin.reloadAccessControl();
+                
+                if (geoPlugin.getAccessControl().isEnabled()) {
+                    int kickedCount = 0;
+                    
+                    for (Player player : sender.getServer().getOnlinePlayers()) {
+                        InetSocketAddress socketAddress = player.getAddress();
+                        if (socketAddress == null) {
+                            continue;
+                        }
+                        
+                        String countryCode = geoManager.getCountryCodeOrDefault(socketAddress.getAddress());
+                        
+                        if (!geoPlugin.getAccessControl().isAllowed(countryCode)) {
+                            player.kickPlayer(geoPlugin.getAccessControl().getKickMessage());
+                            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Kicked " + 
+                                ChatColor.WHITE + player.getName() + 
+                                ChatColor.GRAY + " from " + 
+                                ChatColor.YELLOW + countryCode);
+                            kickedCount++;
+                        }
+                    }
+                    
+                    if (kickedCount > 0) {
+                        sender.sendMessage(MSG_PREFIX + ChatColor.YELLOW + "Kicked " + kickedCount + 
+                            " player(s) due to access control rules.");
+                    }
+                }
             }
             
             sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + "Configuration reloaded successfully.");
