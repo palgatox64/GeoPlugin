@@ -32,3 +32,25 @@ country-access-control:
   # Message sent to players when they are kicked
   # Supports color codes (&c for red, &a for green, etc.)
   kick-message: '&cYou cannot join from your country.'
+
+# ============================================================
+#                 Discord Webhook Integration
+# ============================================================
+discord:
+  # Enable Discord webhook notifications
+  enabled: false
+  
+  # Discord webhook URL
+  # Create one in your Discord server: Server Settings > Integrations > Webhooks
+  # Example: https://discord.com/api/webhooks/123456789/abcdefghijklmnop
+  webhook-url: 'https://discord.com/api/webhooks/YOUR_WEBHOOK_URL'
+  
+  # Send notification when a player is blocked by country access control
+  notify-on-block: true
+  
+  # Send alert when multiple blocked attempts detected from same country
+  # Format: attempts/minutes (e.g., 5 attempts in 10 minutes triggers alert)
+  suspicious-activity:
+    enabled: true
+    threshold: 5
+    time-window-minutes: 10

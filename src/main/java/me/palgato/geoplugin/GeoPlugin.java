@@ -21,6 +21,8 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     private CountryAccessControl accessControl;
     private CountryStatistics statistics;
     private NotificationManager notificationManager;
+    private DiscordWebhook discordWebhook;
+    private SuspiciousActivityTracker activityTracker;
 
     @Override
     public void onEnable() {
@@ -31,6 +33,20 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             this.accessControl = new CountryAccessControl(getConfig());
             this.statistics = new CountryStatistics(getDataFolder(), getLogger());
             this.notificationManager = new NotificationManager(getDataFolder(), getLogger());
+            
+            if (getConfig().getBoolean("discord.enabled", false)) {
+                String webhookUrl = getConfig().getString("discord.webhook-url", "");
+                this.discordWebhook = new DiscordWebhook(webhookUrl, this, getLogger());
+                getLogger().info("Discord webhook integration enabled.");
+            }
+            
+            if (getConfig().getBoolean("discord.suspicious-activity.enabled", false)) {
+                int threshold = getConfig().getInt("discord.suspicious-activity.threshold", 5);
+                int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
+                this.activityTracker = new SuspiciousActivityTracker(threshold, timeWindow);
+                getLogger().info("Suspicious activity tracking enabled.");
+            }
+            
             getServer().getPluginManager().registerEvents(this, this);
             
             GeoCommands commands = new GeoCommands(geoManager, this);
@@ -81,6 +97,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             event.disallow(PlayerLoginEvent.Result.KICK_OTHER, accessControl.getKickMessage());
             
             String playerName = event.getPlayer().getName();
+            String ipAddress = address.getHostAddress();
             getLogger().info("Blocked connection from " + playerName + " (Country: " + countryCode + ")");
             
             notificationManager.getSubscribedPlayerNames().forEach(name -> {
@@ -95,6 +112,19 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                         org.bukkit.ChatColor.YELLOW + countryCode);
                 }
             });
+            
+            if (discordWebhook != null && getConfig().getBoolean("discord.notify-on-block", true)) {
+                discordWebhook.sendBlockedConnectionAlert(playerName, countryCode, ipAddress);
+            }
+            
+            if (activityTracker != null) {
+                boolean isSuspicious = activityTracker.recordAttempt(countryCode);
+                if (isSuspicious && discordWebhook != null) {
+                    int attemptCount = activityTracker.getAttemptCount(countryCode);
+                    int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
+                    discordWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
+                }
+            }
         }
     }
 
@@ -117,6 +147,21 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     
     public void reloadAccessControl() {
         accessControl.reload(getConfig());
+        
+        if (getConfig().getBoolean("discord.enabled", false)) {
+            String webhookUrl = getConfig().getString("discord.webhook-url", "");
+            this.discordWebhook = new DiscordWebhook(webhookUrl, this, getLogger());
+        } else {
+            this.discordWebhook = null;
+        }
+        
+        if (getConfig().getBoolean("discord.suspicious-activity.enabled", false)) {
+            int threshold = getConfig().getInt("discord.suspicious-activity.threshold", 5);
+            int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
+            this.activityTracker = new SuspiciousActivityTracker(threshold, timeWindow);
+        } else {
+            this.activityTracker = null;
+        }
         
         if (accessControl.isEnabled()) {
             getLogger().info("Country access control reloaded: " + 
