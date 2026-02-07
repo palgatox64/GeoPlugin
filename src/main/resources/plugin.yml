@@ -9,7 +9,7 @@ softdepend: [PlaceholderAPI]
 commands:
   geoplugin:
     description: Main GeoPlugin command
-    usage: /<command> [help|reload|countrycheck|vpncheck|list|stats|notify]
+    usage: /<command> [help|reload|countrycheck|vpncheck|ip|list|stats|notify]
     aliases: [geo]
     permission: geoplugin.use
 
@@ -23,6 +23,7 @@ permissions:
       geoplugin.reload: true
       geoplugin.countrycheck: true
       geoplugin.vpncheck: true
+      geoplugin.ip: true
       geoplugin.list: true
       geoplugin.stats: true
       geoplugin.notify: true
@@ -40,6 +41,7 @@ permissions:
       geoplugin.reload: true
       geoplugin.countrycheck: true
       geoplugin.vpncheck: true
+      geoplugin.ip: true
       geoplugin.list: true
       geoplugin.stats: true
       geoplugin.notify: true
@@ -54,6 +56,10 @@ permissions:
   
   geoplugin.vpncheck:
     description: Check if an IP or player is using VPN/Proxy
+    default: op
+  
+  geoplugin.ip:
+    description: Get player IP address with copy function
     default: op
   
   geoplugin.list:

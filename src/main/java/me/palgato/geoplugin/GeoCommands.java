@@ -1,5 +1,9 @@
 package me.palgato.geoplugin;
 
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
+import net.md_5.bungee.api.chat.hover.content.Text;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -24,6 +28,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
     private static final String PERM_RELOAD = "geoplugin.reload";
     private static final String PERM_COUNTRYCHECK = "geoplugin.countrycheck";
     private static final String PERM_VPNCHECK = "geoplugin.vpncheck";
+    private static final String PERM_IP = "geoplugin.ip";
     private static final String PERM_LIST = "geoplugin.list";
     private static final String PERM_STATS = "geoplugin.stats";
     private static final String PERM_NOTIFY = "geoplugin.notify";
@@ -46,6 +51,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         commands.put("reload", new ReloadCommand());
         commands.put("countrycheck", new CountryCheckCommand());
         commands.put("vpncheck", new VpnCheckCommand());
+        commands.put("ip", new IpCommand());
         commands.put("list", new ListCommand());
         commands.put("stats", new StatsCommand());
         commands.put("notify", new NotifyCommand());
@@ -90,6 +96,8 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             return sender.hasPermission(PERM_COUNTRYCHECK);
         } else if (commandName.equals("vpncheck")) {
             return sender.hasPermission(PERM_VPNCHECK);
+        } else if (commandName.equals("ip")) {
+            return sender.hasPermission(PERM_IP);
         } else if (commandName.equals("list")) {
             return sender.hasPermission(PERM_LIST);
         } else if (commandName.equals("stats")) {
@@ -123,6 +131,13 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             }
             
             if (args[0].equalsIgnoreCase("vpncheck") && sender.hasPermission(PERM_VPNCHECK)) {
+                return sender.getServer().getOnlinePlayers().stream()
+                    .map(player -> player.getName())
+                    .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
+                    .toList();
+            }
+            
+            if (args[0].equalsIgnoreCase("ip") && sender.hasPermission(PERM_IP)) {
                 return sender.getServer().getOnlinePlayers().stream()
                     .map(player -> player.getName())
                     .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
@@ -290,6 +305,67 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public String getDescription() {
             return "Check if ip address or player is using VPN/Proxy";
+        }
+    }
+
+    private final class IpCommand implements SubCommand {
+        @Override
+        public void execute(CommandSender sender, String[] args) {
+            if (args.length != 1) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Usage: /geoplugin ip <player>");
+                return;
+            }
+
+            String playerName = args[0];
+            Player target = sender.getServer().getPlayerExact(playerName);
+            
+            if (target == null) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Player not found: " + ChatColor.WHITE + playerName);
+                return;
+            }
+            
+            InetSocketAddress socketAddress = target.getAddress();
+            if (socketAddress == null) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Unable to resolve player address.");
+                return;
+            }
+            
+            String ipAddress = socketAddress.getAddress().getHostAddress();
+            
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                
+                TextComponent prefix = new TextComponent("[Geo] ");
+                prefix.setColor(net.md_5.bungee.api.ChatColor.DARK_GRAY);
+                
+                TextComponent nameComponent = new TextComponent(playerName);
+                nameComponent.setColor(net.md_5.bungee.api.ChatColor.WHITE);
+                
+                TextComponent arrow = new TextComponent(" -> ");
+                arrow.setColor(net.md_5.bungee.api.ChatColor.GRAY);
+                
+                TextComponent ipComponent = new TextComponent(ipAddress);
+                ipComponent.setColor(net.md_5.bungee.api.ChatColor.AQUA);
+                ipComponent.setUnderlined(true);
+                ipComponent.setHoverEvent(new HoverEvent(
+                    HoverEvent.Action.SHOW_TEXT,
+                    new Text("§aCopy")
+                ));
+                ipComponent.setClickEvent(new ClickEvent(
+                    ClickEvent.Action.COPY_TO_CLIPBOARD,
+                    ipAddress
+                ));
+                
+                player.spigot().sendMessage(prefix, nameComponent, arrow, ipComponent);
+            } else {
+                sender.sendMessage(MSG_PREFIX + ChatColor.WHITE + playerName + 
+                    ChatColor.GRAY + " -> " + ChatColor.AQUA + ipAddress);
+            }
+        }
+
+        @Override
+        public String getDescription() {
+            return "Get player IP address (click to copy)";
         }
     }
 
