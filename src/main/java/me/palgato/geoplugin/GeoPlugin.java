@@ -58,9 +58,9 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                 getLogger().info("Custom webhook integration enabled.");
             }
             
-            if (getConfig().getBoolean("discord.suspicious-activity.enabled", false)) {
-                int threshold = getConfig().getInt("discord.suspicious-activity.threshold", 5);
-                int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
+            if (getConfig().getBoolean("suspicious-activity.enabled", false)) {
+                int threshold = getConfig().getInt("suspicious-activity.threshold", 5);
+                int timeWindow = getConfig().getInt("suspicious-activity.time-window-minutes", 10);
                 this.activityTracker = new SuspiciousActivityTracker(threshold, timeWindow);
                 getLogger().info("Suspicious activity tracking enabled.");
             }
@@ -146,9 +146,9 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                     boolean isSuspicious = activityTracker.recordAttempt(countryCode);
                     if (isSuspicious) {
                         int attemptCount = activityTracker.getAttemptCount(countryCode);
-                        int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
+                        int timeWindow = getConfig().getInt("suspicious-activity.time-window-minutes", 10);
                         
-                        if (discordWebhook != null) {
+                        if (discordWebhook != null && getConfig().getBoolean("discord.notify-on-suspicious-activity", true)) {
                             discordWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
                         }
                         
@@ -247,9 +247,9 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             this.customWebhook = null;
         }
         
-        if (getConfig().getBoolean("discord.suspicious-activity.enabled", false)) {
-            int threshold = getConfig().getInt("discord.suspicious-activity.threshold", 5);
-            int timeWindow = getConfig().getInt("discord.suspicious-activity.time-window-minutes", 10);
+        if (getConfig().getBoolean("suspicious-activity.enabled", false)) {
+            int threshold = getConfig().getInt("suspicious-activity.threshold", 5);
+            int timeWindow = getConfig().getInt("suspicious-activity.time-window-minutes", 10);
             this.activityTracker = new SuspiciousActivityTracker(threshold, timeWindow);
         } else {
             this.activityTracker = null;

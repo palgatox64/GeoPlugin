@@ -77,6 +77,23 @@ vpn-detection:
   whitelist-ips: []
 
 # ============================================================
+#              Suspicious Activity Detection
+# ============================================================
+# Detects suspicious patterns (multiple blocked attempts from same country)
+# and sends alerts via configured webhooks (Discord/Custom)
+# NOTE: This ONLY sends notifications. It does NOT change blocking behavior.
+suspicious-activity:
+  # Enable suspicious activity tracking and webhook alerts
+  enabled: true
+  
+  # Number of blocked attempts to trigger webhook alert
+  threshold: 5
+  
+  # Time window in minutes to count attempts
+  # Example: 5 attempts in 10 minutes triggers webhook notification
+  time-window-minutes: 10
+
+# ============================================================
 #                 Discord Webhook Integration
 # ============================================================
 discord:
@@ -90,14 +107,13 @@ discord:
   
   # Send notification when a player is blocked by country access control
   notify-on-block: true
-  
-  # Send alert when multiple blocked attempts detected from same country
-  # Format: attempts/minutes (e.g., 5 attempts in 10 minutes triggers alert)
-  suspicious-activity:
-    enabled: true
-    threshold: 5
-    time-window-minutes: 10
 
+  # Send notification when suspicious activity is detected
+  notify-on-suspicious-activity: true
+  
+  # Send notification when a player is blocked for using VPN/Proxy
+  notify-on-vpn: false
+  
 # ============================================================
 #              Custom Webhook Integration
 # ============================================================
@@ -110,14 +126,14 @@ custom-webhook:
   # The plugin will send JSON payloads to this endpoint
   webhook-url: 'https://your-webhook-url.com/webhook'
   
-  # Send notification when a player is blocked for using VPN/Proxy
-  notify-on-vpn: false
-  
   # Send notification when a player is blocked
   notify-on-block: true
-  
+
   # Send notification when suspicious activity is detected
   notify-on-suspicious-activity: true
+
+  # Send notification when a player is blocked for using VPN/Proxy
+  notify-on-vpn: false
   
   # Custom headers (optional)
   # Useful for authentication tokens, API keys, etc.
