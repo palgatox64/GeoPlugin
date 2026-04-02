@@ -61,7 +61,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission(PERM_USE)) {
-            sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Insufficient permissions.");
+            sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.no_permission"));
             return true;
         }
 
@@ -79,7 +79,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         }
         
         if (!hasCommandPermission(sender, subCommandName)) {
-            sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Insufficient permissions for this command.");
+            sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.no_permission_specific"));
             return true;
         }
 
@@ -149,7 +149,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
     }
 
     private void sendUsage(CommandSender sender) {
-        sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Available commands:");
+        sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + t("cmd.available_commands"));
         subCommands.forEach((name, cmd) -> {
             if (hasCommandPermission(sender, name)) {
                 sender.sendMessage(ChatColor.YELLOW + "/geoplugin " + name + 
@@ -167,7 +167,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public void execute(CommandSender sender, String[] args) {
             if (args.length != 1) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Usage: /geoplugin countrycheck <ip|player>");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.usage_countrycheck"));
                 return;
             }
 
@@ -177,7 +177,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             if (player != null) {
                 InetSocketAddress socketAddress = player.getAddress();
                 if (socketAddress == null) {
-                    sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Unable to resolve player address.");
+                    sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.unable_resolve_player_address"));
                     return;
                 }
                 
@@ -188,7 +188,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             }
 
             if (!IP_PATTERN.matcher(input).matches()) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Invalid ip or player: " + ChatColor.WHITE + input);
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + String.format(t("cmd.invalid_ip_or_player"), ChatColor.WHITE + input));
                 return;
             }
             
@@ -211,7 +211,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
                         new BukkitRunnable() {
                             @Override
                             public void run() {
-                                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Failed to resolve: " + ChatColor.WHITE + input);
+                                sender.sendMessage(MSG_PREFIX + ChatColor.RED + String.format(t("cmd.failed_resolve"), ChatColor.WHITE + input));
                             }
                         }.runTask(plugin);
                     }
@@ -221,7 +221,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
 
         @Override
         public String getDescription() {
-            return "Check country code for ip address or player";
+            return t("cmd.desc_countrycheck");
         }
     }
 
@@ -229,7 +229,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public void execute(CommandSender sender, String[] args) {
             if (!(plugin instanceof GeoPlugin)) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Invalid plugin instance.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.invalid_plugin_instance"));
                 return;
             }
 
@@ -237,12 +237,12 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             VpnDetector vpnDetector = geoPlugin.getVpnDetector();
 
             if (!vpnDetector.isEnabled()) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "VPN detection is disabled.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.vpn_detection_disabled"));
                 return;
             }
 
             if (args.length == 0) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Usage: " + ChatColor.WHITE + "/geoplugin vpncheck <ip|player>");
+                sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + t("cmd.usage_vpncheck"));
                 return;
             }
 
@@ -261,7 +261,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
                                 new BukkitRunnable() {
                                     @Override
                                     public void run() {
-                                        sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Player not found: " + ChatColor.WHITE + input);
+                                        sender.sendMessage(MSG_PREFIX + ChatColor.RED + String.format(t("cmd.player_not_found"), ChatColor.WHITE + input));
                                     }
                                 }.runTask(plugin);
                                 return;
@@ -274,16 +274,16 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
                                 @Override
                                 public void run() {
                                     if (result.isVpn()) {
-                                        sender.sendMessage(MSG_PREFIX + ChatColor.RED + "VPN/Proxy Detected");
-                                        sender.sendMessage(ChatColor.GRAY + "IP: " + ChatColor.WHITE + ipAddress);
-                                        sender.sendMessage(ChatColor.GRAY + "Type: " + ChatColor.YELLOW + result.type());
-                                        sender.sendMessage(ChatColor.GRAY + "Provider: " + ChatColor.YELLOW + result.provider());
-                                        sender.sendMessage(ChatColor.GRAY + "Risk Score: " + ChatColor.RED + result.riskScore() + "%");
+                                        sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.vpn_detected"));
+                                        sender.sendMessage(ChatColor.GRAY + t("cmd.label_ip") + ChatColor.WHITE + ipAddress);
+                                        sender.sendMessage(ChatColor.GRAY + t("cmd.label_type") + ChatColor.YELLOW + mapVpnType(result.type()));
+                                        sender.sendMessage(ChatColor.GRAY + t("cmd.label_provider") + ChatColor.YELLOW + result.provider());
+                                        sender.sendMessage(ChatColor.GRAY + t("cmd.label_risk_score") + ChatColor.RED + result.riskScore() + "%");
                                     } else {
-                                        sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + "Clean IP");
-                                        sender.sendMessage(ChatColor.GRAY + "IP: " + ChatColor.WHITE + ipAddress);
+                                        sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + t("cmd.clean_ip"));
+                                        sender.sendMessage(ChatColor.GRAY + t("cmd.label_ip") + ChatColor.WHITE + ipAddress);
                                         if (!result.type().equals("disabled") && !result.type().equals("error")) {
-                                            sender.sendMessage(ChatColor.GRAY + "Status: " + ChatColor.YELLOW + result.type());
+                                            sender.sendMessage(ChatColor.GRAY + t("cmd.label_status") + ChatColor.YELLOW + mapVpnType(result.type()));
                                         }
                                     }
                                 }
@@ -294,7 +294,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
                         new BukkitRunnable() {
                             @Override
                             public void run() {
-                                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Failed to check: " + ChatColor.WHITE + input);
+                                sender.sendMessage(MSG_PREFIX + ChatColor.RED + String.format(t("cmd.failed_check"), ChatColor.WHITE + input));
                             }
                         }.runTask(plugin);
                     }
@@ -304,7 +304,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
 
         @Override
         public String getDescription() {
-            return "Check if ip address or player is using VPN/Proxy";
+            return t("cmd.desc_vpncheck");
         }
     }
 
@@ -312,7 +312,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public void execute(CommandSender sender, String[] args) {
             if (args.length != 1) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Usage: /geoplugin ip <player>");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.usage_ip"));
                 return;
             }
 
@@ -320,13 +320,13 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             Player target = sender.getServer().getPlayerExact(playerName);
             
             if (target == null) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Player not found: " + ChatColor.WHITE + playerName);
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + String.format(t("cmd.player_not_found"), ChatColor.WHITE + playerName));
                 return;
             }
             
             InetSocketAddress socketAddress = target.getAddress();
             if (socketAddress == null) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Unable to resolve player address.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.unable_resolve_player_address"));
                 return;
             }
             
@@ -365,7 +365,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
 
         @Override
         public String getDescription() {
-            return "Get player IP address (click to copy)";
+            return t("cmd.desc_ip");
         }
     }
 
@@ -392,31 +392,30 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
 
                             if (!geoPlugin.getAccessControl().isAllowed(countryCode)) {
                                 player.kickPlayer(geoPlugin.getAccessControl().getKickMessage());
-                                sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Kicked " +
-                                    ChatColor.WHITE + player.getName() +
-                                    ChatColor.GRAY + " from " +
-                                    ChatColor.YELLOW + countryCode);
+                                sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + String.format(
+                                    t("cmd.kicked_player_from_country"),
+                                    ChatColor.WHITE + player.getName() + ChatColor.GRAY,
+                                    ChatColor.YELLOW + countryCode + ChatColor.GRAY));
                                 kickedCount++;
                             }
                         }
 
                         if (kickedCount > 0) {
-                            sender.sendMessage(MSG_PREFIX + ChatColor.YELLOW + "Kicked " + kickedCount +
-                                " player(s) due to access control rules.");
+                            sender.sendMessage(MSG_PREFIX + ChatColor.YELLOW + String.format(t("cmd.kicked_players_count"), kickedCount));
                         }
                     }
                 }
 
-                sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + "Configuration reloaded successfully.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + t("cmd.reload_success"));
             } catch (Exception e) {
-                plugin.getLogger().log(java.util.logging.Level.WARNING, "Failed to reload config", e);
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Failed to reload configuration. Check console for details.");
+                plugin.getLogger().log(java.util.logging.Level.WARNING, t("warn.reload_failed"), e);
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.reload_failed"));
             }
         }
 
         @Override
         public String getDescription() {
-            return "Reload plugin configuration";
+            return t("cmd.desc_reload");
         }
     }
 
@@ -426,7 +425,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             List<? extends Player> onlinePlayers = sender.getServer().getOnlinePlayers().stream().toList();
             
             if (onlinePlayers.isEmpty()) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "No players online.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.no_players_online"));
                 return;
             }
             
@@ -434,7 +433,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             
             for (Player player : onlinePlayers) {
                 InetSocketAddress socketAddress = player.getAddress();
-                String countryCode = "Unknown";
+                String countryCode = t("cmd.unknown_country");
                 
                 if (socketAddress != null) {
                     countryCode = geoManager.getCountryCodeOrDefault(socketAddress.getAddress());
@@ -443,8 +442,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
                 playersByCountry.computeIfAbsent(countryCode, k -> new java.util.ArrayList<>()).add(player.getName());
             }
             
-            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Online players " + 
-                ChatColor.DARK_GRAY + "(" + ChatColor.WHITE + onlinePlayers.size() + ChatColor.DARK_GRAY + "):");
+            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + t("cmd.online_players", onlinePlayers.size()));
             
             playersByCountry.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
@@ -463,7 +461,7 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
 
         @Override
         public String getDescription() {
-            return "List all online players with their countries";
+            return t("cmd.desc_list");
         }
     }
 
@@ -471,18 +469,18 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public void execute(CommandSender sender, String[] args) {
             if (!(plugin instanceof GeoPlugin)) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Statistics unavailable.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.stats_unavailable"));
                 return;
             }
             
             CountryStatistics stats = ((GeoPlugin) plugin).getStatistics();
             
-            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Country Statistics:");
-            sender.sendMessage(ChatColor.DARK_GRAY + "Total connections: " + ChatColor.WHITE + stats.getTotalConnections());
-            sender.sendMessage(ChatColor.DARK_GRAY + "Unique players: " + ChatColor.WHITE + stats.getTotalUniquePlayers());
+            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + t("cmd.country_statistics"));
+            sender.sendMessage(ChatColor.DARK_GRAY + t("cmd.total_connections") + ChatColor.WHITE + stats.getTotalConnections());
+            sender.sendMessage(ChatColor.DARK_GRAY + t("cmd.unique_players") + ChatColor.WHITE + stats.getTotalUniquePlayers());
             sender.sendMessage("");
             
-            sender.sendMessage(ChatColor.YELLOW + "Top Countries by Total Connections:");
+            sender.sendMessage(ChatColor.YELLOW + t("cmd.top_countries_connections"));
             List<Map.Entry<String, CountryStatistics.CountryData>> topByConnections = 
                 stats.getTopCountriesByConnections(10);
             
@@ -491,13 +489,12 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
                 sender.sendMessage(ChatColor.GRAY + "  " + rank + ". " + 
                     ChatColor.YELLOW + entry.getKey() + 
                     ChatColor.DARK_GRAY + " - " + 
-                    ChatColor.WHITE + entry.getValue().getTotalConnections() + 
-                    ChatColor.GRAY + " connections");
+                    ChatColor.WHITE + t("cmd.connections_count", entry.getValue().getTotalConnections()));
                 rank++;
             }
             
             sender.sendMessage("");
-            sender.sendMessage(ChatColor.YELLOW + "Top Countries by Unique Players:");
+            sender.sendMessage(ChatColor.YELLOW + t("cmd.top_countries_unique"));
             List<Map.Entry<String, CountryStatistics.CountryData>> topByUnique = 
                 stats.getTopCountriesByUniquePlayers(10);
             
@@ -506,15 +503,14 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
                 sender.sendMessage(ChatColor.GRAY + "  " + rank + ". " + 
                     ChatColor.YELLOW + entry.getKey() + 
                     ChatColor.DARK_GRAY + " - " + 
-                    ChatColor.WHITE + entry.getValue().getUniquePlayersCount() + 
-                    ChatColor.GRAY + " unique players");
+                    ChatColor.WHITE + t("cmd.unique_players_count", entry.getValue().getUniquePlayersCount()));
                 rank++;
             }
         }
 
         @Override
         public String getDescription() {
-            return "View country connection statistics";
+            return t("cmd.desc_stats");
         }
     }
 
@@ -522,12 +518,12 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         @Override
         public void execute(CommandSender sender, String[] args) {
             if (!(sender instanceof Player)) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "This command can only be used by players.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.players_only"));
                 return;
             }
             
             if (!(plugin instanceof GeoPlugin)) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Notifications unavailable.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.notifications_unavailable"));
                 return;
             }
             
@@ -539,9 +535,9 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
                                  geoPlugin.getVpnDetector().shouldBlockVpn();
             
             if (!countryEnabled && !vpnEnabled) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Cannot enable notifications: Both systems are disabled.");
-                sender.sendMessage(ChatColor.GRAY + "Enable country-access-control or vpn-detection in config.yml");
-                sender.sendMessage(ChatColor.GRAY + "and use " + ChatColor.WHITE + "/geoplugin reload");
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.notifications_cannot_enable"));
+                sender.sendMessage(ChatColor.GRAY + t("cmd.notifications_enable_hint1"));
+                sender.sendMessage(ChatColor.GRAY + t("cmd.notifications_enable_hint2"));
                 return;
             }
             
@@ -549,27 +545,27 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             boolean newState = notificationManager.toggle(player);
             
             if (newState) {
-                sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + "Block notifications enabled.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + t("cmd.notifications_enabled"));
                 
                 if (countryEnabled && vpnEnabled) {
-                    sender.sendMessage(ChatColor.GRAY + "You will receive alerts for:");
-                    sender.sendMessage(ChatColor.GRAY + "  • Country access control blocks");
-                    sender.sendMessage(ChatColor.GRAY + "  • VPN/Proxy detection blocks");
+                    sender.sendMessage(ChatColor.GRAY + t("cmd.notifications_alerts_for"));
+                    sender.sendMessage(ChatColor.GRAY + t("cmd.notifications_alert_country"));
+                    sender.sendMessage(ChatColor.GRAY + t("cmd.notifications_alert_vpn"));
                 } else if (countryEnabled) {
-                    sender.sendMessage(ChatColor.GRAY + "You will receive alerts when players are blocked by country restrictions.");
-                    sender.sendMessage(ChatColor.DARK_GRAY + "  (VPN detection is disabled)");
+                    sender.sendMessage(ChatColor.GRAY + t("cmd.notifications_country_only"));
+                    sender.sendMessage(ChatColor.DARK_GRAY + t("cmd.notifications_vpn_disabled_note"));
                 } else {
-                    sender.sendMessage(ChatColor.GRAY + "You will receive alerts when players are blocked by VPN/Proxy detection.");
-                    sender.sendMessage(ChatColor.DARK_GRAY + "  (Country access control is disabled)");
+                    sender.sendMessage(ChatColor.GRAY + t("cmd.notifications_vpn_only"));
+                    sender.sendMessage(ChatColor.DARK_GRAY + t("cmd.notifications_country_disabled_note"));
                 }
             } else {
-                sender.sendMessage(MSG_PREFIX + ChatColor.YELLOW + "Block notifications disabled.");
+                sender.sendMessage(MSG_PREFIX + ChatColor.YELLOW + t("cmd.notifications_disabled"));
             }
         }
 
         @Override
         public String getDescription() {
-            return "Toggle blocked connection notifications";
+            return t("cmd.desc_notify");
         }
     }
 
@@ -581,7 +577,36 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
 
         @Override
         public String getDescription() {
-            return "Display available commands";
+            return t("cmd.desc_help");
         }
+    }
+
+    private String t(String key, Object... args) {
+        if (plugin instanceof GeoPlugin) {
+            return ((GeoPlugin) plugin).tr(key, args);
+        }
+
+        return TranslationManager.english().tr(key, args);
+    }
+
+    private String mapVpnType(String rawType) {
+        if (rawType == null) {
+            return t("vpn.type.error");
+        }
+
+        return switch (rawType.toLowerCase()) {
+            case "disabled" -> t("vpn.type.disabled");
+            case "private" -> t("vpn.type.private");
+            case "whitelisted" -> t("vpn.type.whitelisted");
+            case "clean" -> t("vpn.type.clean");
+            case "error" -> t("vpn.type.error");
+            case "vpn" -> t("vpn.type.vpn");
+            case "proxy" -> t("vpn.type.proxy");
+            case "tor" -> t("vpn.type.tor");
+            case "anonymous" -> t("vpn.type.anonymous");
+            case "hosting" -> t("vpn.type.hosting");
+            case "high risk" -> t("vpn.type.high_risk");
+            default -> rawType;
+        };
     }
 }

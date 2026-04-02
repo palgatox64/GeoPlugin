@@ -6,6 +6,11 @@
 # Set to true to see messages like: "PlayerName connected from: US".
 log-player-connections: true
 
+# Plugin language.
+# Available values: 'en' (English), 'es' (Español).
+# Default: 'en'.
+language: 'en'
+
 # ============================================================
 #              Country Access Control System
 # ============================================================
@@ -14,7 +19,7 @@ country-access-control:
   # When disabled, all players can join regardless of their country.
   enabled: false
   
-  # Access control mode: 'whitelist' or 'blacklist'
+  # Access control mode: 'whitelist' or 'blacklist'.
   # - whitelist: Only players from listed countries can join
   # - blacklist: Players from listed countries cannot join.
   mode: 'blacklist'

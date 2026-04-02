@@ -51,10 +51,10 @@ public final class VpnDetector {
 
         int configuredCacheMinutes = config.getInt("vpn-detection.cache-duration-minutes", 60);
         if (configuredCacheMinutes < 1) {
-            plugin.getLogger().warning("vpn-detection.cache-duration-minutes must be >= 1. Using 60.");
+            plugin.getLogger().warning(plugin.tr("warn.cache_min"));
             configuredCacheMinutes = 60;
         } else if (configuredCacheMinutes > 1440) {
-            plugin.getLogger().warning("vpn-detection.cache-duration-minutes is too high (" + configuredCacheMinutes + "). Clamping to 1440.");
+            plugin.getLogger().warning(plugin.tr("warn.cache_max", configuredCacheMinutes));
             configuredCacheMinutes = 1440;
         }
         this.cacheDurationMinutes = configuredCacheMinutes;
@@ -63,7 +63,7 @@ public final class VpnDetector {
 
         int configuredRisk = config.getInt("vpn-detection.min-risk-score", 70);
         if (configuredRisk < 0 || configuredRisk > 100) {
-            plugin.getLogger().warning("vpn-detection.min-risk-score must be between 0 and 100. Using 70.");
+            plugin.getLogger().warning(plugin.tr("warn.risk_invalid"));
             configuredRisk = 70;
         }
         this.minRiskScore = configuredRisk;
@@ -79,13 +79,13 @@ public final class VpnDetector {
                 InetAddress.getByName(ip);
                 validatedWhitelist.add(ip);
             } catch (UnknownHostException e) {
-                plugin.getLogger().warning("Ignoring invalid IP in vpn-detection.whitelist-ips: '" + ip + "'.");
+                plugin.getLogger().warning(plugin.tr("warn.whitelist_ip_invalid", ip));
             }
         }
         this.whitelistedIps = Set.copyOf(validatedWhitelist);
 
         if (enabled && apiKey.isEmpty()) {
-            plugin.getLogger().warning("vpn-detection is enabled without api-key. Detection works but may be less reliable due to rate limits.");
+            plugin.getLogger().warning(plugin.tr("warn.vpn_no_api"));
         }
     }
 
@@ -137,7 +137,7 @@ public final class VpnDetector {
                     cache.put(ip, new CachedResult(result, System.currentTimeMillis()));
                     future.complete(result);
                 } catch (Exception e) {
-                    plugin.getLogger().log(Level.WARNING, "Failed to check VPN for IP: " + ip, e);
+                    plugin.getLogger().log(Level.WARNING, plugin.tr("warn.failed_check_vpn", ip), e);
                     future.complete(new VpnCheckResult(false, "error", "API Error", 0));
                 }
             }

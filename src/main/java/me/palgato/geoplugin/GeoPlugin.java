@@ -35,14 +35,16 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     private CustomWebhook customWebhook;
     private SuspiciousActivityTracker activityTracker;
     private VpnDetector vpnDetector;
+    private TranslationManager i18n;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        this.i18n = TranslationManager.fromConfig(getConfig(), getLogger());
         
         try {
             this.geoManager = initializeGeoManager();
-            this.accessControl = new CountryAccessControl(getConfig(), getLogger());
+            this.accessControl = new CountryAccessControl(getConfig(), getLogger(), i18n);
             this.statistics = new CountryStatistics(getDataFolder(), getLogger());
             this.notificationManager = new NotificationManager(getDataFolder(), getLogger());
             
@@ -50,7 +52,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                 String webhookUrl = validateWebhookUrl(getConfig().getString("discord.webhook-url", ""), "discord.webhook-url");
                 if (webhookUrl != null) {
                     this.discordWebhook = new DiscordWebhook(webhookUrl, this, getLogger());
-                    getLogger().info("Discord webhook integration enabled.");
+                    getLogger().info(tr("log.discord_enabled"));
                 }
             }
             
@@ -60,19 +62,19 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                     org.bukkit.configuration.ConfigurationSection headersSection = 
                         getConfig().getConfigurationSection("custom-webhook.headers");
                     this.customWebhook = new CustomWebhook(webhookUrl, headersSection, this, getLogger());
-                    getLogger().info("Custom webhook integration enabled.");
+                    getLogger().info(tr("log.custom_webhook_enabled"));
                 }
             }
             
             if (getConfig().getBoolean("suspicious-activity.enabled", false)) {
                 this.activityTracker = createSuspiciousActivityTracker();
-                getLogger().info("Suspicious activity tracking enabled.");
+                getLogger().info(tr("log.suspicious_tracking_enabled"));
             }
             
             this.vpnDetector = new VpnDetector(this);
             vpnDetector.reload(getConfig());
             if (vpnDetector.isEnabled()) {
-                getLogger().info("VPN detection enabled.");
+                getLogger().info(tr("log.vpn_enabled"));
             }
             
             getServer().getPluginManager().registerEvents(this, this);
@@ -83,16 +85,14 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
 
             if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
                 new GeoPlaceholderExpansion(this, geoManager).register();
-                getLogger().info("PlaceholderAPI integration enabled.");
+                getLogger().info(tr("log.placeholder_enabled"));
             }
             
             if (accessControl.isEnabled()) {
-                getLogger().info("Country access control enabled in " + 
-                    accessControl.getMode() + " mode with " + 
-                    accessControl.getCountries().size() + " countries.");
+                getLogger().info(tr("log.country_access_enabled", accessControl.getMode(), accessControl.getCountries().size()));
             }
         } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Failed to initialize GeoIP database", e);
+            getLogger().log(Level.SEVERE, tr("log.failed_geoip_init"), e);
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -125,16 +125,13 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             if (!accessControl.isAllowed(countryCode)) {
                 event.disallow(PlayerLoginEvent.Result.KICK_OTHER, accessControl.getKickMessage());
                 
-                getLogger().info("Blocked connection from " + playerName + " (Country: " + countryCode + ")");
+                getLogger().info(tr("log.blocked_connection_country", playerName, countryCode));
                 
                 notificationManager.getSubscribedPlayerNames().forEach(name -> {
                     org.bukkit.entity.Player admin = getServer().getPlayerExact(name);
                     if (admin != null && admin.isOnline()) {
                         admin.sendMessage(MSG_PREFIX + 
-                            org.bukkit.ChatColor.RED + "Blocked: " + 
-                            org.bukkit.ChatColor.WHITE + playerName + 
-                            org.bukkit.ChatColor.GRAY + " from " + 
-                            org.bukkit.ChatColor.YELLOW + countryCode);
+                            org.bukkit.ChatColor.RED + tr("admin.blocked", playerName, countryCode));
                     }
                 });
                 
@@ -176,16 +173,13 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                             if (targetPlayer != null && targetPlayer.isOnline()) {
                                 targetPlayer.kickPlayer(vpnDetector.getKickMessage());
                                 
-                                getLogger().info("Blocked VPN connection from " + playerName + 
-                                    " (" + result.type() + " - " + result.provider() + ")");
+                                getLogger().info(tr("log.blocked_vpn_connection", playerName, mapVpnType(result.type()), result.provider()));
                                 
                                 notificationManager.getSubscribedPlayerNames().forEach(name -> {
                                     Player admin = getServer().getPlayerExact(name);
                                     if (admin != null && admin.isOnline()) {
                                         admin.sendMessage(MSG_PREFIX + 
-                                            org.bukkit.ChatColor.RED + "Blocked VPN: " + 
-                                            org.bukkit.ChatColor.WHITE + playerName + 
-                                            org.bukkit.ChatColor.GRAY + " (" + result.type() + ")");
+                                            org.bukkit.ChatColor.RED + tr("admin.blocked_vpn", playerName, mapVpnType(result.type())));
                                     }
                                 });
                                 
@@ -224,7 +218,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             } else if (hasBypassPermission(p, PERM_BYPASS_COUNTRY) || hasBypassPermission(p, PERM_BYPASS_VPN)) {
                 bypassInfo = " [PARTIAL BYPASS]";
             }
-            getLogger().info(p.getName() + " connected from: " + countryCode + bypassInfo);
+            getLogger().info(tr("log.player_connected_from", p.getName(), countryCode, bypassInfo));
         }
     }
     
@@ -233,6 +227,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     }
     
     public void reloadAccessControl() {
+        this.i18n = TranslationManager.fromConfig(getConfig(), getLogger());
         accessControl.reload(getConfig());
         
         if (getConfig().getBoolean("discord.enabled", false)) {
@@ -263,15 +258,13 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         
         vpnDetector.reload(getConfig());
         if (vpnDetector.isEnabled()) {
-            getLogger().info("VPN detection reloaded.");
+            getLogger().info(tr("log.vpn_reloaded"));
         }
         
         if (accessControl.isEnabled()) {
-            getLogger().info("Country access control reloaded: " + 
-                accessControl.getMode() + " mode with " + 
-                accessControl.getCountries().size() + " countries.");
+            getLogger().info(tr("log.country_access_reloaded", accessControl.getMode(), accessControl.getCountries().size()));
         } else {
-            getLogger().info("Country access control is disabled.");
+            getLogger().info(tr("log.country_access_disabled"));
         }
     }
     
@@ -291,16 +284,24 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         return vpnDetector;
     }
 
+    public String tr(String key, Object... args) {
+        return i18n.tr(key, args);
+    }
+
+    public TranslationManager getI18n() {
+        return i18n;
+    }
+
     private SuspiciousActivityTracker createSuspiciousActivityTracker() {
         int threshold = getConfig().getInt("suspicious-activity.threshold", 5);
         if (threshold < 1) {
-            getLogger().warning("suspicious-activity.threshold must be >= 1. Using 5.");
+            getLogger().warning(tr("warn.threshold_invalid"));
             threshold = 5;
         }
 
         int timeWindow = getConfig().getInt("suspicious-activity.time-window-minutes", 10);
         if (timeWindow < 1) {
-            getLogger().warning("suspicious-activity.time-window-minutes must be >= 1. Using 10.");
+            getLogger().warning(tr("warn.timewindow_invalid"));
             timeWindow = 10;
         }
 
@@ -309,13 +310,13 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
 
     private String validateWebhookUrl(String rawUrl, String configPath) {
         if (rawUrl == null) {
-            getLogger().warning(configPath + " is null. Webhook integration disabled.");
+            getLogger().warning(tr("warn.webhook_null", configPath));
             return null;
         }
 
         String url = rawUrl.trim();
         if (url.isEmpty()) {
-            getLogger().warning(configPath + " is empty. Webhook integration disabled.");
+            getLogger().warning(tr("warn.webhook_empty", configPath));
             return null;
         }
 
@@ -323,14 +324,35 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             URL parsed = new URL(url);
             String protocol = parsed.getProtocol();
             if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
-                getLogger().warning(configPath + " must use http or https. Webhook integration disabled.");
+                getLogger().warning(tr("warn.webhook_protocol", configPath));
                 return null;
             }
             return url;
         } catch (MalformedURLException e) {
-            getLogger().warning("Invalid URL in " + configPath + ": '" + url + "'. Webhook integration disabled.");
+            getLogger().warning(tr("warn.webhook_invalid", configPath, url));
             return null;
         }
+    }
+
+    private String mapVpnType(String rawType) {
+        if (rawType == null) {
+            return tr("vpn.type.error");
+        }
+
+        return switch (rawType.toLowerCase()) {
+            case "disabled" -> tr("vpn.type.disabled");
+            case "private" -> tr("vpn.type.private");
+            case "whitelisted" -> tr("vpn.type.whitelisted");
+            case "clean" -> tr("vpn.type.clean");
+            case "error" -> tr("vpn.type.error");
+            case "vpn" -> tr("vpn.type.vpn");
+            case "proxy" -> tr("vpn.type.proxy");
+            case "tor" -> tr("vpn.type.tor");
+            case "anonymous" -> tr("vpn.type.anonymous");
+            case "hosting" -> tr("vpn.type.hosting");
+            case "high risk" -> tr("vpn.type.high_risk");
+            default -> rawType;
+        };
     }
 
     @Override

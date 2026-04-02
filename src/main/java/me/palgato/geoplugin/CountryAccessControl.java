@@ -24,9 +24,11 @@ public final class CountryAccessControl {
     private Set<String> countries;
     private String kickMessage;
     private final Logger logger;
+    private final TranslationManager i18n;
     
-    public CountryAccessControl(FileConfiguration config, Logger logger) {
+    public CountryAccessControl(FileConfiguration config, Logger logger, TranslationManager i18n) {
         this.logger = logger;
+        this.i18n = i18n;
         reload(config);
     }
     
@@ -36,7 +38,9 @@ public final class CountryAccessControl {
             this.enabled = false;
             this.mode = Mode.BLACKLIST;
             this.countries = new HashSet<>();
-            this.kickMessage = "§cYou cannot join from your country.";
+            this.kickMessage = i18n.getLanguage() == TranslationManager.Language.ES
+                ? "§cNo puedes entrar desde tu país."
+                : "§cYou cannot join from your country.";
             return;
         }
         
@@ -50,7 +54,7 @@ public final class CountryAccessControl {
             this.mode = Mode.BLACKLIST;
         } else {
             this.mode = Mode.BLACKLIST;
-            logger.warning("Invalid country-access-control.mode value '" + modeRaw + "'. Using 'blacklist'.");
+            logger.warning(i18n.tr("warn.invalid_mode", modeRaw));
         }
         
         List<String> countryList = section.getStringList("countries");
@@ -59,14 +63,14 @@ public final class CountryAccessControl {
             .filter(value -> {
                 boolean valid = COUNTRY_CODE_PATTERN.matcher(value).matches();
                 if (!valid && !value.isEmpty()) {
-                    logger.warning("Ignoring invalid country code in config: '" + value + "'. Expected ISO 3166-1 alpha-2 (e.g. US, BR).");
+                    logger.warning(i18n.tr("warn.invalid_country_code", value));
                 }
                 return valid;
             })
             .collect(Collectors.toSet());
 
         if (enabled && countries.isEmpty()) {
-            logger.warning("country-access-control is enabled but no valid country codes were found.");
+            logger.warning(i18n.tr("warn.country_enabled_no_valid"));
         }
         
         this.kickMessage = section.getString("kick-message", "§cYou cannot join from your country.")
