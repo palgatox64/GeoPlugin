@@ -6,9 +6,13 @@ import org.bukkit.configuration.file.FileConfiguration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public final class CountryAccessControl {
+
+    private static final Pattern COUNTRY_CODE_PATTERN = Pattern.compile("^[A-Z]{2}$");
     
     public enum Mode {
         WHITELIST,
@@ -19,8 +23,10 @@ public final class CountryAccessControl {
     private Mode mode;
     private Set<String> countries;
     private String kickMessage;
+    private final Logger logger;
     
-    public CountryAccessControl(FileConfiguration config) {
+    public CountryAccessControl(FileConfiguration config, Logger logger) {
+        this.logger = logger;
         reload(config);
     }
     
@@ -36,13 +42,32 @@ public final class CountryAccessControl {
         
         this.enabled = section.getBoolean("enabled", false);
         
-        String modeStr = section.getString("mode", "blacklist").toLowerCase();
-        this.mode = modeStr.equals("whitelist") ? Mode.WHITELIST : Mode.BLACKLIST;
+        String modeRaw = section.getString("mode", "blacklist");
+        String modeStr = modeRaw == null ? "blacklist" : modeRaw.trim().toLowerCase();
+        if (modeStr.equals("whitelist")) {
+            this.mode = Mode.WHITELIST;
+        } else if (modeStr.equals("blacklist")) {
+            this.mode = Mode.BLACKLIST;
+        } else {
+            this.mode = Mode.BLACKLIST;
+            logger.warning("Invalid country-access-control.mode value '" + modeRaw + "'. Using 'blacklist'.");
+        }
         
         List<String> countryList = section.getStringList("countries");
         this.countries = countryList.stream()
-            .map(String::toUpperCase)
+            .map(value -> value == null ? "" : value.trim().toUpperCase())
+            .filter(value -> {
+                boolean valid = COUNTRY_CODE_PATTERN.matcher(value).matches();
+                if (!valid && !value.isEmpty()) {
+                    logger.warning("Ignoring invalid country code in config: '" + value + "'. Expected ISO 3166-1 alpha-2 (e.g. US, BR).");
+                }
+                return valid;
+            })
             .collect(Collectors.toSet());
+
+        if (enabled && countries.isEmpty()) {
+            logger.warning("country-access-control is enabled but no valid country codes were found.");
+        }
         
         this.kickMessage = section.getString("kick-message", "§cYou cannot join from your country.")
             .replace('&', '§');

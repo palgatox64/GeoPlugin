@@ -13,6 +13,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.logging.Level;
 
 public final class GeoPlugin extends JavaPlugin implements Listener {
@@ -40,28 +42,30 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         
         try {
             this.geoManager = initializeGeoManager();
-            this.accessControl = new CountryAccessControl(getConfig());
+            this.accessControl = new CountryAccessControl(getConfig(), getLogger());
             this.statistics = new CountryStatistics(getDataFolder(), getLogger());
             this.notificationManager = new NotificationManager(getDataFolder(), getLogger());
             
             if (getConfig().getBoolean("discord.enabled", false)) {
-                String webhookUrl = getConfig().getString("discord.webhook-url", "");
-                this.discordWebhook = new DiscordWebhook(webhookUrl, this, getLogger());
-                getLogger().info("Discord webhook integration enabled.");
+                String webhookUrl = validateWebhookUrl(getConfig().getString("discord.webhook-url", ""), "discord.webhook-url");
+                if (webhookUrl != null) {
+                    this.discordWebhook = new DiscordWebhook(webhookUrl, this, getLogger());
+                    getLogger().info("Discord webhook integration enabled.");
+                }
             }
             
             if (getConfig().getBoolean("custom-webhook.enabled", false)) {
-                String webhookUrl = getConfig().getString("custom-webhook.webhook-url", "");
-                org.bukkit.configuration.ConfigurationSection headersSection = 
-                    getConfig().getConfigurationSection("custom-webhook.headers");
-                this.customWebhook = new CustomWebhook(webhookUrl, headersSection, this, getLogger());
-                getLogger().info("Custom webhook integration enabled.");
+                String webhookUrl = validateWebhookUrl(getConfig().getString("custom-webhook.webhook-url", ""), "custom-webhook.webhook-url");
+                if (webhookUrl != null) {
+                    org.bukkit.configuration.ConfigurationSection headersSection = 
+                        getConfig().getConfigurationSection("custom-webhook.headers");
+                    this.customWebhook = new CustomWebhook(webhookUrl, headersSection, this, getLogger());
+                    getLogger().info("Custom webhook integration enabled.");
+                }
             }
             
             if (getConfig().getBoolean("suspicious-activity.enabled", false)) {
-                int threshold = getConfig().getInt("suspicious-activity.threshold", 5);
-                int timeWindow = getConfig().getInt("suspicious-activity.time-window-minutes", 10);
-                this.activityTracker = new SuspiciousActivityTracker(threshold, timeWindow);
+                this.activityTracker = createSuspiciousActivityTracker();
                 getLogger().info("Suspicious activity tracking enabled.");
             }
             
@@ -232,25 +236,27 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         accessControl.reload(getConfig());
         
         if (getConfig().getBoolean("discord.enabled", false)) {
-            String webhookUrl = getConfig().getString("discord.webhook-url", "");
-            this.discordWebhook = new DiscordWebhook(webhookUrl, this, getLogger());
+            String webhookUrl = validateWebhookUrl(getConfig().getString("discord.webhook-url", ""), "discord.webhook-url");
+            this.discordWebhook = webhookUrl == null ? null : new DiscordWebhook(webhookUrl, this, getLogger());
         } else {
             this.discordWebhook = null;
         }
         
         if (getConfig().getBoolean("custom-webhook.enabled", false)) {
-            String webhookUrl = getConfig().getString("custom-webhook.webhook-url", "");
-            org.bukkit.configuration.ConfigurationSection headersSection = 
-                getConfig().getConfigurationSection("custom-webhook.headers");
-            this.customWebhook = new CustomWebhook(webhookUrl, headersSection, this, getLogger());
+            String webhookUrl = validateWebhookUrl(getConfig().getString("custom-webhook.webhook-url", ""), "custom-webhook.webhook-url");
+            if (webhookUrl != null) {
+                org.bukkit.configuration.ConfigurationSection headersSection = 
+                    getConfig().getConfigurationSection("custom-webhook.headers");
+                this.customWebhook = new CustomWebhook(webhookUrl, headersSection, this, getLogger());
+            } else {
+                this.customWebhook = null;
+            }
         } else {
             this.customWebhook = null;
         }
         
         if (getConfig().getBoolean("suspicious-activity.enabled", false)) {
-            int threshold = getConfig().getInt("suspicious-activity.threshold", 5);
-            int timeWindow = getConfig().getInt("suspicious-activity.time-window-minutes", 10);
-            this.activityTracker = new SuspiciousActivityTracker(threshold, timeWindow);
+            this.activityTracker = createSuspiciousActivityTracker();
         } else {
             this.activityTracker = null;
         }
@@ -283,6 +289,48 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     
     public VpnDetector getVpnDetector() {
         return vpnDetector;
+    }
+
+    private SuspiciousActivityTracker createSuspiciousActivityTracker() {
+        int threshold = getConfig().getInt("suspicious-activity.threshold", 5);
+        if (threshold < 1) {
+            getLogger().warning("suspicious-activity.threshold must be >= 1. Using 5.");
+            threshold = 5;
+        }
+
+        int timeWindow = getConfig().getInt("suspicious-activity.time-window-minutes", 10);
+        if (timeWindow < 1) {
+            getLogger().warning("suspicious-activity.time-window-minutes must be >= 1. Using 10.");
+            timeWindow = 10;
+        }
+
+        return new SuspiciousActivityTracker(threshold, timeWindow);
+    }
+
+    private String validateWebhookUrl(String rawUrl, String configPath) {
+        if (rawUrl == null) {
+            getLogger().warning(configPath + " is null. Webhook integration disabled.");
+            return null;
+        }
+
+        String url = rawUrl.trim();
+        if (url.isEmpty()) {
+            getLogger().warning(configPath + " is empty. Webhook integration disabled.");
+            return null;
+        }
+
+        try {
+            URL parsed = new URL(url);
+            String protocol = parsed.getProtocol();
+            if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
+                getLogger().warning(configPath + " must use http or https. Webhook integration disabled.");
+                return null;
+            }
+            return url;
+        } catch (MalformedURLException e) {
+            getLogger().warning("Invalid URL in " + configPath + ": '" + url + "'. Webhook integration disabled.");
+            return null;
+        }
     }
 
     @Override

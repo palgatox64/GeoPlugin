@@ -372,41 +372,46 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
     private final class ReloadCommand implements SubCommand {
         @Override
         public void execute(CommandSender sender, String[] args) {
-            plugin.reloadConfig();
-            
-            if (plugin instanceof GeoPlugin) {
-                GeoPlugin geoPlugin = (GeoPlugin) plugin;
-                geoPlugin.reloadAccessControl();
-                
-                if (geoPlugin.getAccessControl().isEnabled()) {
-                    int kickedCount = 0;
-                    
-                    for (Player player : sender.getServer().getOnlinePlayers()) {
-                        InetSocketAddress socketAddress = player.getAddress();
-                        if (socketAddress == null) {
-                            continue;
+            try {
+                plugin.reloadConfig();
+
+                if (plugin instanceof GeoPlugin) {
+                    GeoPlugin geoPlugin = (GeoPlugin) plugin;
+                    geoPlugin.reloadAccessControl();
+
+                    if (geoPlugin.getAccessControl().isEnabled()) {
+                        int kickedCount = 0;
+
+                        for (Player player : sender.getServer().getOnlinePlayers()) {
+                            InetSocketAddress socketAddress = player.getAddress();
+                            if (socketAddress == null) {
+                                continue;
+                            }
+
+                            String countryCode = geoManager.getCountryCodeOrDefault(socketAddress.getAddress());
+
+                            if (!geoPlugin.getAccessControl().isAllowed(countryCode)) {
+                                player.kickPlayer(geoPlugin.getAccessControl().getKickMessage());
+                                sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Kicked " +
+                                    ChatColor.WHITE + player.getName() +
+                                    ChatColor.GRAY + " from " +
+                                    ChatColor.YELLOW + countryCode);
+                                kickedCount++;
+                            }
                         }
-                        
-                        String countryCode = geoManager.getCountryCodeOrDefault(socketAddress.getAddress());
-                        
-                        if (!geoPlugin.getAccessControl().isAllowed(countryCode)) {
-                            player.kickPlayer(geoPlugin.getAccessControl().getKickMessage());
-                            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + "Kicked " + 
-                                ChatColor.WHITE + player.getName() + 
-                                ChatColor.GRAY + " from " + 
-                                ChatColor.YELLOW + countryCode);
-                            kickedCount++;
+
+                        if (kickedCount > 0) {
+                            sender.sendMessage(MSG_PREFIX + ChatColor.YELLOW + "Kicked " + kickedCount +
+                                " player(s) due to access control rules.");
                         }
-                    }
-                    
-                    if (kickedCount > 0) {
-                        sender.sendMessage(MSG_PREFIX + ChatColor.YELLOW + "Kicked " + kickedCount + 
-                            " player(s) due to access control rules.");
                     }
                 }
+
+                sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + "Configuration reloaded successfully.");
+            } catch (Exception e) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "Failed to reload config", e);
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + "Failed to reload configuration. Check console for details.");
             }
-            
-            sender.sendMessage(MSG_PREFIX + ChatColor.GREEN + "Configuration reloaded successfully.");
         }
 
         @Override

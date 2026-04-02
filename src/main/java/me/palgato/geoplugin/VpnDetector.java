@@ -8,7 +8,9 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.Map;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,14 +44,49 @@ public final class VpnDetector {
 
     public void reload(FileConfiguration config) {
         this.enabled = config.getBoolean("vpn-detection.enabled", false);
-        this.apiKey = config.getString("vpn-detection.api-key", "");
+        this.apiKey = config.getString("vpn-detection.api-key", "").trim();
         this.blockVpn = config.getBoolean("vpn-detection.block-vpn", true);
         this.checkOnLogin = config.getBoolean("vpn-detection.check-on-login", true);
         this.kickMessage = config.getString("vpn-detection.kick-message", "&cVPN/Proxy connections are not allowed");
-        this.cacheDurationMinutes = config.getInt("vpn-detection.cache-duration-minutes", 60);
+
+        int configuredCacheMinutes = config.getInt("vpn-detection.cache-duration-minutes", 60);
+        if (configuredCacheMinutes < 1) {
+            plugin.getLogger().warning("vpn-detection.cache-duration-minutes must be >= 1. Using 60.");
+            configuredCacheMinutes = 60;
+        } else if (configuredCacheMinutes > 1440) {
+            plugin.getLogger().warning("vpn-detection.cache-duration-minutes is too high (" + configuredCacheMinutes + "). Clamping to 1440.");
+            configuredCacheMinutes = 1440;
+        }
+        this.cacheDurationMinutes = configuredCacheMinutes;
+
         this.detectHosting = config.getBoolean("vpn-detection.detect-hosting", true);
-        this.minRiskScore = Math.max(0, config.getInt("vpn-detection.min-risk-score", 70));
-        this.whitelistedIps = Set.copyOf(config.getStringList("vpn-detection.whitelist-ips"));
+
+        int configuredRisk = config.getInt("vpn-detection.min-risk-score", 70);
+        if (configuredRisk < 0 || configuredRisk > 100) {
+            plugin.getLogger().warning("vpn-detection.min-risk-score must be between 0 and 100. Using 70.");
+            configuredRisk = 70;
+        }
+        this.minRiskScore = configuredRisk;
+
+        Set<String> validatedWhitelist = new HashSet<>();
+        for (String rawIp : config.getStringList("vpn-detection.whitelist-ips")) {
+            if (rawIp == null || rawIp.trim().isEmpty()) {
+                continue;
+            }
+
+            String ip = rawIp.trim();
+            try {
+                InetAddress.getByName(ip);
+                validatedWhitelist.add(ip);
+            } catch (UnknownHostException e) {
+                plugin.getLogger().warning("Ignoring invalid IP in vpn-detection.whitelist-ips: '" + ip + "'.");
+            }
+        }
+        this.whitelistedIps = Set.copyOf(validatedWhitelist);
+
+        if (enabled && apiKey.isEmpty()) {
+            plugin.getLogger().warning("vpn-detection is enabled without api-key. Detection works but may be less reliable due to rate limits.");
+        }
     }
 
     public boolean isEnabled() {

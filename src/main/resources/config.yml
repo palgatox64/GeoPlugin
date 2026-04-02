@@ -26,6 +26,10 @@ country-access-control:
   #   - 'US'
   #   - 'GB'
   #   - 'DE'
+  # Note about localhost/testing:
+  # 'XX' is used as fallback (unknown country), common when testing locally.
+  # - blacklist mode: keep 'XX' to block localhost/unknown connections
+  # - whitelist mode: add 'XX' if you want localhost/unknown to be allowed
   countries:
     - 'XX'
   
@@ -45,6 +49,8 @@ vpn-detection:
   #   - Spigot spigot.yml: settings.bungeecord: true
   #   - Velocity: forward-secret configuration
   # Without IP forwarding, this plugin cannot get real player IPs
+  # Note: localhost/private IPs (127.0.0.1, 10.x.x.x, 172.16-31.x.x, 192.168.x.x)
+  # are treated as private and won't be flagged as VPN/Proxy.
   enabled: false
   
   # API key for proxycheck.io (optional, but recommended for better rate limits)
@@ -79,10 +85,11 @@ vpn-detection:
   
   # Whitelist specific IPs (useful for trusted VPNs)
   # Example: Your personal VPN, trusted players, etc.
-  # Format:
-  #   - '192.168.1.100'
+  # Add one IP per line using this format:
+  #   - '172.16.10.25'
   #   - '10.0.0.50'
-  whitelist-ips: []
+  # Leave empty if you don't want to whitelist any IPs
+  whitelist-ips:
 
 # ============================================================
 #              Suspicious Activity Detection
