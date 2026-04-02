@@ -20,6 +20,11 @@ public final class GeoPlaceholderExpansion extends PlaceholderExpansion {
     private static final String VERSION = "1.0";
     private static final String COUNTRY_PREFIX = "country_";
     private static final String COUNTRY_SMALLCAPS_PREFIX = "country_smallcaps_";
+    private static final String TOTAL_CONNECTIONS = "total_connections";
+    private static final String TOTAL_UNIQUE_PLAYERS = "total_unique_players";
+    private static final String TOP_COUNTRY_1_CODE = "top_country_1_code";
+    private static final String TOP_COUNTRY_1_CONNECTIONS = "top_country_1_connections";
+    private static final String TOP_COUNTRY_1_UNIQUE = "top_country_1_unique";
     private static final String ERROR_INVALID = "INVALID";
     private static final String ERROR_OFFLINE = "OFFLINE";
     private static final Pattern IP_PATTERN = Pattern.compile(
@@ -68,12 +73,32 @@ public final class GeoPlaceholderExpansion extends PlaceholderExpansion {
     public @NotNull List<String> getPlaceholders() {
         return List.of(
             "%geoplugin_country_<player/ip>%",
-            "%geoplugin_country_smallcaps_<player/ip>%"
+            "%geoplugin_country_smallcaps_<player/ip>%",
+            "%geoplugin_total_connections%",
+            "%geoplugin_total_unique_players%",
+            "%geoplugin_top_country_1_code%",
+            "%geoplugin_top_country_1_connections%",
+            "%geoplugin_top_country_1_unique%"
         );
     }
 
     @Override
     public @Nullable String onRequest(OfflinePlayer player, @NotNull String params) {
+        switch (params) {
+            case TOTAL_CONNECTIONS:
+                return String.valueOf(plugin.getStatistics().getTotalConnections());
+            case TOTAL_UNIQUE_PLAYERS:
+                return String.valueOf(plugin.getStatistics().getTotalUniquePlayers());
+            case TOP_COUNTRY_1_CODE:
+                return getTopCountryCode();
+            case TOP_COUNTRY_1_CONNECTIONS:
+                return String.valueOf(getTopCountryConnections());
+            case TOP_COUNTRY_1_UNIQUE:
+                return String.valueOf(getTopCountryUniquePlayers());
+            default:
+                break;
+        }
+
         if (params.startsWith(COUNTRY_SMALLCAPS_PREFIX)) {
             String input = params.substring(COUNTRY_SMALLCAPS_PREFIX.length());
             if (input.isEmpty()) {
@@ -136,5 +161,29 @@ public final class GeoPlaceholderExpansion extends PlaceholderExpansion {
             result.append(SMALLCAPS_MAP.getOrDefault(c, c));
         }
         return result.toString();
+    }
+
+    private String getTopCountryCode() {
+        List<Map.Entry<String, CountryStatistics.CountryData>> top = plugin.getStatistics().getTopCountriesByConnections(1);
+        if (top.isEmpty()) {
+            return "NONE";
+        }
+        return top.getFirst().getKey();
+    }
+
+    private int getTopCountryConnections() {
+        List<Map.Entry<String, CountryStatistics.CountryData>> top = plugin.getStatistics().getTopCountriesByConnections(1);
+        if (top.isEmpty()) {
+            return 0;
+        }
+        return top.getFirst().getValue().getTotalConnections();
+    }
+
+    private int getTopCountryUniquePlayers() {
+        List<Map.Entry<String, CountryStatistics.CountryData>> top = plugin.getStatistics().getTopCountriesByConnections(1);
+        if (top.isEmpty()) {
+            return 0;
+        }
+        return top.getFirst().getValue().getUniquePlayersCount();
     }
 }

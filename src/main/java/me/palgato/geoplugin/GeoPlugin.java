@@ -221,7 +221,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             getLogger().info(tr("log.player_connected_from", p.getName(), countryCode, bypassInfo));
         }
     }
-    
+
     private boolean hasBypassPermission(Player player, String specificPermission) {
         return player.hasPermission(PERM_BYPASS_ALL) || player.hasPermission(specificPermission);
     }
