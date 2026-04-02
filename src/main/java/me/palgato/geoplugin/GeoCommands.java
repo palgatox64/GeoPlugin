@@ -16,7 +16,9 @@ import org.bukkit.scheduler.BukkitRunnable;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,8 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
     private static final String PERM_LIST = "geoplugin.list";
     private static final String PERM_STATS = "geoplugin.stats";
     private static final String PERM_NOTIFY = "geoplugin.notify";
+    private static final int LIST_PAGE_SIZE = 10;
+    private static final int STATS_TOP_LIMIT = 10;
     
     private static final String MSG_PREFIX = ChatColor.DARK_GRAY + "[" + ChatColor.AQUA + "Geo" + ChatColor.DARK_GRAY + "] ";
     private static final Pattern IP_PATTERN = Pattern.compile(
@@ -162,6 +166,8 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
         void execute(CommandSender sender, String[] args);
         String getDescription();
     }
+
+    private record PlayerCountryEntry(String playerName, String countryCode) {}
 
     private final class CountryCheckCommand implements SubCommand {
         @Override
@@ -422,41 +428,63 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
     private final class ListCommand implements SubCommand {
         @Override
         public void execute(CommandSender sender, String[] args) {
+            if (args.length > 1) {
+                sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.usage_list"));
+                return;
+            }
+
+            int requestedPage = 1;
+            if (args.length == 1) {
+                try {
+                    requestedPage = Integer.parseInt(args[0]);
+                    if (requestedPage < 1) {
+                        sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.invalid_page"));
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                    sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.invalid_page"));
+                    return;
+                }
+            }
+
+            List<PlayerCountryEntry> entries = new ArrayList<>();
             List<? extends Player> onlinePlayers = sender.getServer().getOnlinePlayers().stream().toList();
-            
             if (onlinePlayers.isEmpty()) {
                 sender.sendMessage(MSG_PREFIX + ChatColor.RED + t("cmd.no_players_online"));
                 return;
             }
-            
-            Map<String, List<String>> playersByCountry = new LinkedHashMap<>();
-            
+
             for (Player player : onlinePlayers) {
                 InetSocketAddress socketAddress = player.getAddress();
                 String countryCode = t("cmd.unknown_country");
-                
+
                 if (socketAddress != null) {
                     countryCode = geoManager.getCountryCodeOrDefault(socketAddress.getAddress());
                 }
-                
-                playersByCountry.computeIfAbsent(countryCode, k -> new java.util.ArrayList<>()).add(player.getName());
+
+                entries.add(new PlayerCountryEntry(player.getName(), countryCode));
             }
+
+            entries.sort(Comparator
+                .comparing(PlayerCountryEntry::countryCode)
+                .thenComparing(PlayerCountryEntry::playerName, String.CASE_INSENSITIVE_ORDER));
+
+            int totalPages = (int) Math.ceil((double) entries.size() / LIST_PAGE_SIZE);
+            int page = Math.min(requestedPage, totalPages);
+            int fromIndex = (page - 1) * LIST_PAGE_SIZE;
+            int toIndex = Math.min(fromIndex + LIST_PAGE_SIZE, entries.size());
             
-            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + t("cmd.online_players", onlinePlayers.size()));
-            
-            playersByCountry.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .forEach(entry -> {
-                    String countryCode = entry.getKey();
-                    List<String> players = entry.getValue();
-                    
-                    sender.sendMessage(ChatColor.YELLOW + countryCode + ChatColor.DARK_GRAY + " (" + 
-                        ChatColor.WHITE + players.size() + ChatColor.DARK_GRAY + "):");
-                    
-                    players.forEach(playerName -> 
-                        sender.sendMessage(ChatColor.GRAY + "  • " + ChatColor.WHITE + playerName)
-                    );
-                });
+            sender.sendMessage(MSG_PREFIX + ChatColor.GRAY + t("cmd.list_header", entries.size(), page, totalPages));
+
+            for (int i = fromIndex; i < toIndex; i++) {
+                PlayerCountryEntry entry = entries.get(i);
+                sender.sendMessage(ChatColor.DARK_GRAY + "  #" + (i + 1) + " " +
+                    ChatColor.WHITE + entry.playerName() +
+                    ChatColor.GRAY + " -> " +
+                    ChatColor.YELLOW + entry.countryCode());
+            }
+
+            sendListPagination(sender, page, totalPages, "/geoplugin list");
         }
 
         @Override
@@ -480,9 +508,9 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             sender.sendMessage(ChatColor.DARK_GRAY + t("cmd.unique_players") + ChatColor.WHITE + stats.getTotalUniquePlayers());
             sender.sendMessage("");
             
-            sender.sendMessage(ChatColor.YELLOW + t("cmd.top_countries_connections"));
+            sender.sendMessage(ChatColor.YELLOW + t("cmd.top_countries_connections", STATS_TOP_LIMIT));
             List<Map.Entry<String, CountryStatistics.CountryData>> topByConnections = 
-                stats.getTopCountriesByConnections(10);
+                stats.getTopCountriesByConnections(STATS_TOP_LIMIT);
             
             int rank = 1;
             for (Map.Entry<String, CountryStatistics.CountryData> entry : topByConnections) {
@@ -494,9 +522,9 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             }
             
             sender.sendMessage("");
-            sender.sendMessage(ChatColor.YELLOW + t("cmd.top_countries_unique"));
+            sender.sendMessage(ChatColor.YELLOW + t("cmd.top_countries_unique", STATS_TOP_LIMIT));
             List<Map.Entry<String, CountryStatistics.CountryData>> topByUnique = 
-                stats.getTopCountriesByUniquePlayers(10);
+                stats.getTopCountriesByUniquePlayers(STATS_TOP_LIMIT);
             
             rank = 1;
             for (Map.Entry<String, CountryStatistics.CountryData> entry : topByUnique) {
@@ -609,4 +637,42 @@ public final class GeoCommands implements CommandExecutor, TabCompleter {
             default -> rawType;
         };
     }
+
+    private void sendListPagination(CommandSender sender, int page, int totalPages, String commandPrefix) {
+        if (totalPages <= 1) {
+            return;
+        }
+
+        if (sender instanceof Player player) {
+            TextComponent prev = new TextComponent(t("cmd.pagination_prev"));
+            prev.setColor(net.md_5.bungee.api.ChatColor.YELLOW);
+
+            if (page > 1) {
+                prev.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, commandPrefix + " " + (page - 1)));
+                prev.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(t("cmd.pagination_prev_hover"))));
+            } else {
+                prev.setColor(net.md_5.bungee.api.ChatColor.DARK_GRAY);
+            }
+
+            TextComponent separator = new TextComponent(" " + t("cmd.pagination_page", page, totalPages) + " ");
+            separator.setColor(net.md_5.bungee.api.ChatColor.GRAY);
+
+            TextComponent next = new TextComponent(t("cmd.pagination_next"));
+            next.setColor(net.md_5.bungee.api.ChatColor.YELLOW);
+
+            if (page < totalPages) {
+                next.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, commandPrefix + " " + (page + 1)));
+                next.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(t("cmd.pagination_next_hover"))));
+            } else {
+                next.setColor(net.md_5.bungee.api.ChatColor.DARK_GRAY);
+            }
+
+            player.spigot().sendMessage(prev, separator, next);
+            return;
+        }
+
+        sender.sendMessage(ChatColor.GRAY + t("cmd.pagination_console_hint", page, totalPages));
+        sender.sendMessage(ChatColor.DARK_GRAY + commandPrefix + " <page>");
+    }
+
 }
