@@ -13,6 +13,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class VpnDetector {
 
@@ -23,6 +25,8 @@ public final class VpnDetector {
     private boolean checkOnLogin;
     private String kickMessage;
     private int cacheDurationMinutes;
+    private boolean detectHosting;
+    private int minRiskScore;
     private Set<String> whitelistedIps;
     private final Map<String, CachedResult> cache;
 
@@ -43,6 +47,8 @@ public final class VpnDetector {
         this.checkOnLogin = config.getBoolean("vpn-detection.check-on-login", true);
         this.kickMessage = config.getString("vpn-detection.kick-message", "&cVPN/Proxy connections are not allowed");
         this.cacheDurationMinutes = config.getInt("vpn-detection.cache-duration-minutes", 60);
+        this.detectHosting = config.getBoolean("vpn-detection.detect-hosting", true);
+        this.minRiskScore = Math.max(0, config.getInt("vpn-detection.min-risk-score", 70));
         this.whitelistedIps = Set.copyOf(config.getStringList("vpn-detection.whitelist-ips"));
     }
 
@@ -136,33 +142,77 @@ public final class VpnDetector {
             return new VpnCheckResult(false, "clean", "Not VPN", 0);
         }
 
-        boolean isVpn = json.contains("\"proxy\":\"yes\"");
-        String type = extractJsonValue(json, "type");
-        String provider = extractJsonValue(json, "provider");
-        int riskScore = isVpn ? 100 : 0;
+        boolean proxyDetected = extractBooleanValue(json, "proxy").orElse(false);
+        boolean vpnDetected = extractBooleanValue(json, "vpn").orElse(false);
+        boolean torDetected = extractBooleanValue(json, "tor").orElse(false);
+        boolean anonymousDetected = extractBooleanValue(json, "anonymous").orElse(false);
+        boolean hostingDetected = extractBooleanValue(json, "hosting").orElse(false);
 
-        if (type.isEmpty()) {
-            type = "Unknown";
-        }
-        if (provider.isEmpty()) {
-            provider = "Unknown Provider";
+        int riskScore = extractIntValue(json, "risk").orElse(0);
+        boolean riskTriggered = minRiskScore > 0 && riskScore >= minRiskScore;
+
+        boolean detectedByCore = proxyDetected || vpnDetected || torDetected || anonymousDetected;
+        boolean detectedByHosting = detectHosting && hostingDetected;
+
+        boolean isVpn = detectedByCore || detectedByHosting || riskTriggered;
+
+        String provider = extractStringValue(json, "provider").orElse("Unknown Provider");
+        String networkType = extractStringValue(json, "type").orElse("");
+
+        String type;
+        if (vpnDetected) {
+            type = "VPN";
+        } else if (proxyDetected) {
+            type = "Proxy";
+        } else if (torDetected) {
+            type = "Tor";
+        } else if (anonymousDetected) {
+            type = "Anonymous";
+        } else if (detectedByHosting) {
+            type = "Hosting";
+        } else if (riskTriggered) {
+            type = "High Risk";
+        } else if (!networkType.isEmpty()) {
+            type = networkType;
+        } else {
+            type = "clean";
         }
 
         return new VpnCheckResult(isVpn, type, provider, riskScore);
     }
 
-    private String extractJsonValue(String json, String key) {
-        String searchKey = "\"" + key + "\":\"";
-        int startIndex = json.indexOf(searchKey);
-        if (startIndex == -1) {
-            return "";
+    private java.util.Optional<String> extractStringValue(String json, String key) {
+        Pattern pattern = Pattern.compile("\\\"" + Pattern.quote(key) + "\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"");
+        Matcher matcher = pattern.matcher(json);
+        if (!matcher.find()) {
+            return java.util.Optional.empty();
         }
-        startIndex += searchKey.length();
-        int endIndex = json.indexOf("\"", startIndex);
-        if (endIndex == -1) {
-            return "";
+        return java.util.Optional.ofNullable(matcher.group(1));
+    }
+
+    private java.util.Optional<Boolean> extractBooleanValue(String json, String key) {
+        Pattern pattern = Pattern.compile("\\\"" + Pattern.quote(key) + "\\\"\\s*:\\s*(true|false|\\\"yes\\\"|\\\"no\\\")", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(json);
+        if (!matcher.find()) {
+            return java.util.Optional.empty();
         }
-        return json.substring(startIndex, endIndex);
+
+        String value = matcher.group(1).replace("\"", "").toLowerCase();
+        return java.util.Optional.of(value.equals("true") || value.equals("yes"));
+    }
+
+    private java.util.Optional<Integer> extractIntValue(String json, String key) {
+        Pattern pattern = Pattern.compile("\\\"" + Pattern.quote(key) + "\\\"\\s*:\\s*(-?\\d+)");
+        Matcher matcher = pattern.matcher(json);
+        if (!matcher.find()) {
+            return java.util.Optional.empty();
+        }
+
+        try {
+            return java.util.Optional.of(Integer.parseInt(matcher.group(1)));
+        } catch (NumberFormatException e) {
+            return java.util.Optional.empty();
+        }
     }
 
     private boolean isPrivateIp(String ip) {

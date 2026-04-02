@@ -68,6 +68,14 @@ vpn-detection:
   # Cache duration in minutes (reduces API calls)
   # Results are cached to avoid repeatedly checking the same IP
   cache-duration-minutes: 60
+
+  # Treat hosting/datacenter IPs as VPN/Proxy
+  # Useful because some VPN providers are classified as "hosting"
+  detect-hosting: true
+
+  # Minimum risk score (0-100) to classify IP as VPN/Proxy
+  # Set to 0 to disable risk-based blocking
+  min-risk-score: 70
   
   # Whitelist specific IPs (useful for trusted VPNs)
   # Example: Your personal VPN, trusted players, etc.
