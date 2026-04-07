@@ -188,6 +188,7 @@ public final class TranslationManager {
             case "warn.cache_max" -> select("vpn-detection.cache-duration-minutes is too high (%d). Clamping to 1440.", "vpn-detection.cache-duration-minutes es demasiado alto (%d). Ajustando a 1440.");
             case "warn.risk_invalid" -> select("vpn-detection.min-risk-score must be between 0 and 100. Using 70.", "vpn-detection.min-risk-score debe estar entre 0 y 100. Usando 70.");
             case "warn.whitelist_ip_invalid" -> select("Ignoring invalid IP in vpn-detection.whitelist-ips: '%s'.", "Ignorando IP inválida en vpn-detection.whitelist-ips: '%s'.");
+            case "warn.whitelist_uuid_invalid" -> select("Ignoring invalid UUID in vpn-detection.whitelist-player-uuids: '%s'.", "Ignorando UUID inválido en vpn-detection.whitelist-player-uuids: '%s'.");
             case "warn.vpn_no_api" -> select("vpn-detection is enabled without api-key. Detection works but may be less reliable due to rate limits.", "vpn-detection está activado sin api-key. Funciona, pero puede ser menos confiable por límites de tasa.");
             case "warn.failed_check_vpn" -> select("Failed to check VPN for IP: %s", "No se pudo comprobar VPN para IP: %s");
             case "warn.reload_failed" -> select("Failed to reload config", "No se pudo recargar config");

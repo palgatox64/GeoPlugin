@@ -15,6 +15,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 import java.util.logging.Level;
 
 public final class GeoPlugin extends JavaPlugin implements Listener {
@@ -36,6 +39,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
     private SuspiciousActivityTracker activityTracker;
     private VpnDetector vpnDetector;
     private TranslationManager i18n;
+    private Set<UUID> vpnWhitelistedPlayerUuids = Set.of();
 
     @Override
     public void onEnable() {
@@ -73,6 +77,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             
             this.vpnDetector = new VpnDetector(this);
             vpnDetector.reload(getConfig());
+            reloadVpnUuidWhitelist();
             if (vpnDetector.isEnabled()) {
                 getLogger().info(tr("log.vpn_enabled"));
             }
@@ -163,7 +168,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             }
         }
         
-        if (vpnDetector.isEnabled() && vpnDetector.shouldCheckOnLogin() && !hasBypassPermission(player, PERM_BYPASS_VPN)) {
+        if (vpnDetector.isEnabled() && vpnDetector.shouldCheckOnLogin() && !hasVpnBypass(player)) {
             vpnDetector.checkIp(address).thenAccept(result -> {
                 if (result.isVpn() && vpnDetector.shouldBlockVpn()) {
                     new BukkitRunnable() {
@@ -215,15 +220,41 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
             Player p = event.getPlayer();
             if (hasBypassPermission(p, PERM_BYPASS_ALL)) {
                 bypassInfo = " [BYPASS]";
-            } else if (hasBypassPermission(p, PERM_BYPASS_COUNTRY) || hasBypassPermission(p, PERM_BYPASS_VPN)) {
+            } else if (hasBypassPermission(p, PERM_BYPASS_COUNTRY) || hasVpnBypass(p)) {
                 bypassInfo = " [PARTIAL BYPASS]";
             }
             getLogger().info(tr("log.player_connected_from", p.getName(), countryCode, bypassInfo));
         }
     }
 
+    private boolean hasVpnBypass(Player player) {
+        if (hasBypassPermission(player, PERM_BYPASS_VPN)) {
+            return true;
+        }
+        return vpnWhitelistedPlayerUuids.contains(player.getUniqueId());
+    }
+
     private boolean hasBypassPermission(Player player, String specificPermission) {
         return player.hasPermission(PERM_BYPASS_ALL) || player.hasPermission(specificPermission);
+    }
+
+    private void reloadVpnUuidWhitelist() {
+        Set<UUID> validated = new HashSet<>();
+
+        for (String rawUuid : getConfig().getStringList("vpn-detection.whitelist-player-uuids")) {
+            if (rawUuid == null || rawUuid.trim().isEmpty()) {
+                continue;
+            }
+
+            String candidate = rawUuid.trim();
+            try {
+                validated.add(UUID.fromString(candidate));
+            } catch (IllegalArgumentException e) {
+                getLogger().warning(tr("warn.whitelist_uuid_invalid", candidate));
+            }
+        }
+
+        this.vpnWhitelistedPlayerUuids = Set.copyOf(validated);
     }
     
     public void reloadAccessControl() {
@@ -257,6 +288,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         }
         
         vpnDetector.reload(getConfig());
+        reloadVpnUuidWhitelist();
         if (vpnDetector.isEnabled()) {
             getLogger().info(tr("log.vpn_reloaded"));
         }

@@ -88,13 +88,21 @@ vpn-detection:
   # Set to 0 to disable risk-based blocking.
   min-risk-score: 70
   
-  # Whitelist specific IPs (useful for trusted VPNs)
-  # Example: Your personal VPN, trusted players, etc.
+  # Whitelist specific IPs (useful for trusted proxies)
+  # Best for stable/fixed IPs only.
+  # For people with rotating VPN IPs, prefer permission bypass or UUID whitelist below.
   # Add one IP per line using this format.
-  #   - '172.16.10.25'
-  #   - '10.0.0.50'
+
   # Leave empty if you don't want to whitelist any IPs.
   whitelist-ips:
+  # - '172.16.10.25'
+  # - '10.0.0.50'
+
+  # Whitelist player UUIDs for VPN bypass (recommended for specific users)
+  # This bypasses VPN blocking for those players, independent of changing VPN IPs.
+  # Tip: keep this short; use permission nodes for staff groups.
+  whitelist-player-uuids:
+  # - '123e4567-e89b-12d3-a456-426614174000'
 
 # ============================================================
 #              Suspicious Activity Detection

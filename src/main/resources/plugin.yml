@@ -15,7 +15,7 @@ commands:
 
 permissions:
   geoplugin.*:
-    description: Grants access to all GeoPlugin features
+    description: Grants all features including bypass permissions (OP by default)
     default: op
     children:
       geoplugin.use: true
@@ -34,7 +34,7 @@ permissions:
     default: op
   
   geoplugin.admin:
-    description: Full administrative access to all commands
+    description: Full administrative access to commands (does not include bypass)
     default: op
     children:
       geoplugin.use: true
