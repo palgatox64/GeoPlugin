@@ -35,6 +35,7 @@ build/
 ### VS Code ###
 .vscode/
 AGENTS.md
+MODRINTH_DESCRIPTION.md
 
 ### Mac OS ###
 .DS_Store
