@@ -17,7 +17,7 @@ public final class GeoPlaceholderExpansion extends PlaceholderExpansion {
 
     private static final String IDENTIFIER = "geoplugin";
     private static final String AUTHOR = "palgato";
-    private static final String VERSION = "1.0";
+    private static final String VERSION = "1.0.0";
     private static final String COUNTRY_PREFIX = "country_";
     private static final String COUNTRY_SMALLCAPS_PREFIX = "country_smallcaps_";
     private static final String TOTAL_CONNECTIONS = "total_connections";
