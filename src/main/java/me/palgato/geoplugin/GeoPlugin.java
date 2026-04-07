@@ -124,10 +124,9 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         UUID playerId = player.getUniqueId();
         String playerName = player.getName();
         String ipAddress = address.getHostAddress();
+        String countryCode = geoManager.getCountryCodeOrDefault(address);
         
         if (accessControl.isEnabled() && !hasBypassPermission(player, PERM_BYPASS_COUNTRY)) {
-            String countryCode = geoManager.getCountryCodeOrDefault(address);
-            
             if (!accessControl.isAllowed(countryCode)) {
                 event.disallow(PlayerLoginEvent.Result.KICK_OTHER, accessControl.getKickMessage());
                 
@@ -149,21 +148,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                     customWebhook.sendBlockedConnectionAlert(playerName, countryCode, ipAddress);
                 }
                 
-                if (activityTracker != null) {
-                    boolean isSuspicious = activityTracker.recordAttempt(countryCode);
-                    if (isSuspicious) {
-                        int attemptCount = activityTracker.getAttemptCount(countryCode);
-                        int timeWindow = getConfig().getInt("suspicious-activity.time-window-minutes", 10);
-                        
-                        if (discordWebhook != null && getConfig().getBoolean("discord.notify-on-suspicious-activity", true)) {
-                            discordWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
-                        }
-                        
-                        if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-suspicious-activity", true)) {
-                            customWebhook.sendSuspiciousActivity(countryCode, attemptCount, timeWindow);
-                        }
-                    }
-                }
+                handleSuspiciousActivity(playerName, ipAddress, countryCode, "country_access_block");
                 
                 return;
             }
@@ -172,13 +157,13 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         if (vpnDetector.isEnabled() && vpnDetector.shouldCheckOnLogin() && !hasVpnBypass(player)) {
             vpnDetector.checkIp(address).thenAccept(result -> {
                 if (result.isVpn() && vpnDetector.shouldBlockVpn()) {
-                    kickVpnPlayerWhenOnline(playerId, playerName, ipAddress, result);
+                    kickVpnPlayerWhenOnline(playerId, playerName, ipAddress, countryCode, result);
                 }
             });
         }
     }
 
-    private void kickVpnPlayerWhenOnline(UUID playerId, String playerName, String ipAddress, VpnDetector.VpnCheckResult result) {
+    private void kickVpnPlayerWhenOnline(UUID playerId, String playerName, String ipAddress, String countryCode, VpnDetector.VpnCheckResult result) {
         new BukkitRunnable() {
             private int attempts = 0;
 
@@ -208,6 +193,8 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                         customWebhook.sendVpnBlockedAlert(playerName, ipAddress, result.type(), result.provider());
                     }
 
+                    handleSuspiciousActivity(playerName, ipAddress, countryCode, "vpn_proxy_block");
+
                     cancel();
                     return;
                 }
@@ -217,6 +204,28 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
                 }
             }
         }.runTaskTimer(this, 1L, 1L);
+    }
+
+    private void handleSuspiciousActivity(String playerName, String ipAddress, String countryCode, String source) {
+        if (activityTracker == null) {
+            return;
+        }
+
+        boolean isSuspicious = activityTracker.recordAttempt(countryCode);
+        if (!isSuspicious) {
+            return;
+        }
+
+        int attemptCount = activityTracker.getAttemptCount(countryCode);
+        int timeWindow = getConfig().getInt("suspicious-activity.time-window-minutes", 10);
+
+        if (discordWebhook != null && getConfig().getBoolean("discord.notify-on-suspicious-activity", true)) {
+            discordWebhook.sendSuspiciousActivity(playerName, ipAddress, countryCode, attemptCount, timeWindow, source);
+        }
+
+        if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-suspicious-activity", true)) {
+            customWebhook.sendSuspiciousActivity(playerName, ipAddress, countryCode, attemptCount, timeWindow, source);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

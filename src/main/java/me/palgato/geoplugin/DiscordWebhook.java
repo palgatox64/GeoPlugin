@@ -41,19 +41,28 @@ public final class DiscordWebhook {
         sendMessageWithThumbnail(content, 15158332, thumbnailUrl); // Red color
     }
     
-    public void sendSuspiciousActivity(String countryCode, int attemptCount, int timeWindowMinutes) {
+    public void sendSuspiciousActivity(String playerName, String ipAddress, String countryCode, int attemptCount, int timeWindowMinutes, String source) {
         if (webhookUrl == null || webhookUrl.isEmpty() || webhookUrl.equals("https://discord.com/api/webhooks/YOUR_WEBHOOK_URL")) {
             return;
         }
+
+        String sourceLabel = "vpn_proxy_block".equalsIgnoreCase(source)
+            ? "VPN/Proxy Block"
+            : "Country Access Block";
         
         String content = String.format(
             "**Suspicious Activity Detected**\\n" +
+            "Player: `%s`\\n" +
+            "IP: `%s`\\n" +
             "Country: `%s`\\n" +
+            "Source: `%s`\\n" +
             "Blocked attempts: `%d` in last %d minutes",
-            countryCode, attemptCount, timeWindowMinutes
+            playerName, ipAddress, countryCode, sourceLabel, attemptCount, timeWindowMinutes
         );
+
+        String thumbnailUrl = "https://mc-heads.net/avatar/" + playerName;
         
-        sendMessage(content, 16776960); // Yellow color
+        sendMessageWithThumbnail(content, 16776960, thumbnailUrl); // Yellow color
     }
     
     public void sendVpnBlockedAlert(String playerName, String ipAddress, String vpnType, String provider) {

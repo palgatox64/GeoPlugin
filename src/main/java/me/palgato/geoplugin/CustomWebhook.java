@@ -50,14 +50,16 @@ public final class CustomWebhook {
         sendWebhook(json);
     }
     
-    public void sendSuspiciousActivity(String countryCode, int attemptCount, int timeWindowMinutes) {
+    public void sendSuspiciousActivity(String playerName, String ipAddress, String countryCode, int attemptCount, int timeWindowMinutes, String source) {
         if (webhookUrl == null || webhookUrl.isEmpty()) {
             return;
         }
+
+        String avatarUrl = "https://mc-heads.net/avatar/" + playerName;
         
         String json = String.format(
-            "{\"event\":\"suspicious_activity\",\"timestamp\":\"%s\",\"data\":{\"country\":\"%s\",\"attempts\":%d,\"time_window_minutes\":%d}}",
-            Instant.now().toString(), countryCode, attemptCount, timeWindowMinutes
+            "{\"event\":\"suspicious_activity\",\"timestamp\":\"%s\",\"data\":{\"player\":\"%s\",\"ip\":\"%s\",\"country\":\"%s\",\"source\":\"%s\",\"attempts\":%d,\"time_window_minutes\":%d,\"avatar_url\":\"%s\"}}",
+            Instant.now().toString(), playerName, ipAddress, countryCode, source, attemptCount, timeWindowMinutes, avatarUrl
         );
         
         sendWebhook(json);
