@@ -15,9 +15,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.UUID;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.UUID;
 import java.util.logging.Level;
 
 public final class GeoPlugin extends JavaPlugin implements Listener {
@@ -121,6 +121,7 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         }
         
         Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
         String playerName = player.getName();
         String ipAddress = address.getHostAddress();
         
@@ -171,36 +172,51 @@ public final class GeoPlugin extends JavaPlugin implements Listener {
         if (vpnDetector.isEnabled() && vpnDetector.shouldCheckOnLogin() && !hasVpnBypass(player)) {
             vpnDetector.checkIp(address).thenAccept(result -> {
                 if (result.isVpn() && vpnDetector.shouldBlockVpn()) {
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            Player targetPlayer = getServer().getPlayerExact(playerName);
-                            if (targetPlayer != null && targetPlayer.isOnline()) {
-                                targetPlayer.kickPlayer(vpnDetector.getKickMessage());
-                                
-                                getLogger().info(tr("log.blocked_vpn_connection", playerName, mapVpnType(result.type()), result.provider()));
-                                
-                                notificationManager.getSubscribedPlayerNames().forEach(name -> {
-                                    Player admin = getServer().getPlayerExact(name);
-                                    if (admin != null && admin.isOnline()) {
-                                        admin.sendMessage(MSG_PREFIX + 
-                                            org.bukkit.ChatColor.RED + tr("admin.blocked_vpn", playerName, mapVpnType(result.type())));
-                                    }
-                                });
-                                
-                                if (discordWebhook != null && getConfig().getBoolean("discord.notify-on-vpn", false)) {
-                                    discordWebhook.sendVpnBlockedAlert(playerName, ipAddress, result.type(), result.provider());
-                                }
-                                
-                                if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-vpn", false)) {
-                                    customWebhook.sendVpnBlockedAlert(playerName, ipAddress, result.type(), result.provider());
-                                }
-                            }
-                        }
-                    }.runTask(this);
+                    kickVpnPlayerWhenOnline(playerId, playerName, ipAddress, result);
                 }
             });
         }
+    }
+
+    private void kickVpnPlayerWhenOnline(UUID playerId, String playerName, String ipAddress, VpnDetector.VpnCheckResult result) {
+        new BukkitRunnable() {
+            private int attempts = 0;
+
+            @Override
+            public void run() {
+                attempts++;
+
+                Player targetPlayer = getServer().getPlayer(playerId);
+                if (targetPlayer != null && targetPlayer.isOnline()) {
+                    targetPlayer.kickPlayer(vpnDetector.getKickMessage());
+
+                    getLogger().info(tr("log.blocked_vpn_connection", playerName, mapVpnType(result.type()), result.provider()));
+
+                    notificationManager.getSubscribedPlayerNames().forEach(name -> {
+                        Player admin = getServer().getPlayerExact(name);
+                        if (admin != null && admin.isOnline()) {
+                            admin.sendMessage(MSG_PREFIX +
+                                org.bukkit.ChatColor.RED + tr("admin.blocked_vpn", playerName, mapVpnType(result.type())));
+                        }
+                    });
+
+                    if (discordWebhook != null && getConfig().getBoolean("discord.notify-on-vpn", false)) {
+                        discordWebhook.sendVpnBlockedAlert(playerName, ipAddress, result.type(), result.provider());
+                    }
+
+                    if (customWebhook != null && getConfig().getBoolean("custom-webhook.notify-on-vpn", false)) {
+                        customWebhook.sendVpnBlockedAlert(playerName, ipAddress, result.type(), result.provider());
+                    }
+
+                    cancel();
+                    return;
+                }
+
+                if (attempts >= 80) {
+                    cancel();
+                }
+            }
+        }.runTaskTimer(this, 1L, 1L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

@@ -72,7 +72,7 @@ public final class DiscordWebhook {
         
         String thumbnailUrl = "https://mc-heads.net/avatar/" + playerName;
         
-        sendMessageWithThumbnail(content, 16744272, thumbnailUrl); // Orange color
+        sendMessageWithThumbnail(content, 10181046, thumbnailUrl); // Purple color
     }
     
     private void sendMessage(String content, int color) {

@@ -134,7 +134,9 @@ public final class VpnDetector {
             public void run() {
                 try {
                     VpnCheckResult result = queryProxycheckApi(ip);
-                    cache.put(ip, new CachedResult(result, System.currentTimeMillis()));
+                    if (shouldCacheResult(result)) {
+                        cache.put(ip, new CachedResult(result, System.currentTimeMillis()));
+                    }
                     future.complete(result);
                 } catch (Exception e) {
                     plugin.getLogger().log(Level.WARNING, plugin.tr("warn.failed_check_vpn", ip), e);
@@ -175,8 +177,14 @@ public final class VpnDetector {
     }
 
     private VpnCheckResult parseProxycheckResponse(String ip, String json) {
+        String status = extractStringValue(json, "status").orElse("");
+        if (status.equalsIgnoreCase("error") || status.equalsIgnoreCase("denied")) {
+            String message = extractStringValue(json, "message").orElse("API Error");
+            return new VpnCheckResult(false, "error", message, 0);
+        }
+
         if (!json.contains("\"" + ip + "\"")) {
-            return new VpnCheckResult(false, "clean", "Not VPN", 0);
+            return new VpnCheckResult(false, "error", "Invalid API payload", 0);
         }
 
         boolean proxyDetected = extractBooleanValue(json, "proxy").orElse(false);
@@ -216,6 +224,10 @@ public final class VpnDetector {
         }
 
         return new VpnCheckResult(isVpn, type, provider, riskScore);
+    }
+
+    private boolean shouldCacheResult(VpnCheckResult result) {
+        return result != null && !"error".equalsIgnoreCase(result.type());
     }
 
     private java.util.Optional<String> extractStringValue(String json, String key) {
