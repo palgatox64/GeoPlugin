@@ -4,6 +4,10 @@ GeoPlugin is a GeoIP and VPN/Proxy protection plugin for Minecraft servers.
 
 It supports country-based access rules, VPN/proxy checks on login, country statistics, suspicious activity alerts, and webhook notifications.
 
+<a href="https://ko-fi.com/palgato" target="_blank" rel="noopener noreferrer">
+	<img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" />
+</a>
+
 ## Compatibility
 
 - Paper
